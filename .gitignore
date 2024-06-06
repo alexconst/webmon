@@ -1,0 +1,8 @@
+credentials/*
+secrets/*
+venv
+.vscode
+*.swp
+*.pyc
+__pycache__
+

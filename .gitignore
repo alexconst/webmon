@@ -1,5 +1,6 @@
 credentials/*
 secrets/*
+sandbox/*
 venv
 .vscode
 *.swp

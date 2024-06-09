@@ -3,7 +3,7 @@
 # running make with no targets will run the first target (in this case "help")
 # this help menu
 help:
-	@cat $(MAKEFILE_LIST) | grep -v '^args:' | grep -B 1 '^[a-z\-]*:' | sed 's/\(^[^#].*\):.*/\1/g' | sed 's/\([^#]\)--/\1XXDEADBEEFXX/g' | awk 'BEGIN {RS="--\n?"; FS="\n"} {printf "\033[36m%-20s\033[0m %s\n", $$2, $$1}' | sed 's/XXDEADBEEFXX/--/g'
+	@cat $(MAKEFILE_LIST) | grep -E -v '^args:|^tests:' | grep -B 1 '^[a-z\-]*:' | sed 's/\(^[^#].*\):.*/\1/g' | sed 's/\([^#]\)--/\1XXDEADBEEFXX/g' | awk 'BEGIN {RS="--\n?"; FS="\n"} {printf "\033[36m%-20s\033[0m %s\n", $$2, $$1}' | sed 's/XXDEADBEEFXX/--/g'
 
 args:
 # if the first argument is "run" then pass any other arguments to the app
@@ -63,6 +63,8 @@ profiling: args
 		tuna app.prof ;\
 	)
 
+tests: test
+
 # run tests using pytest
 test:
 	@( \
@@ -80,5 +82,5 @@ debug:
 # catch unmatched rules (which are triggered when passing extra options to run) to do nothing
 %:
 	@:
-
+	@echo "No such target in the Makefile"
 

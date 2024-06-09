@@ -1,4 +1,11 @@
 ipdb
 pdbpp
 # tuna
+pytest
+pytest-asyncio
+black
+flake8
+mypy
+isort
+ruff
 

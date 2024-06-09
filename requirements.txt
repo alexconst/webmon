@@ -1,2 +1,5 @@
+asyncpg
 aiohttp
+aioretry
+pydantic
 

@@ -1,6 +1,11 @@
 import asyncio
 import asyncpg
 from typing import List
+import pydantic
+import logging
+from enum import Enum
+
+logger = logging.getLogger("webmonitor")
 
 class DatabasePostgresql():
     """DB connection module to PostgreSQL.
@@ -27,7 +32,7 @@ class DatabasePostgresql():
         self.conn = await asyncpg.connect(user=db_user, password=db_pass, database=db_name, host=db_host, port=db_port, ssl=db_ssl)
 
 
-    async def read_query(self, query: str) -> List(dict):
+    async def read_query(self, query: str) -> List[dict]:
         """Executes a SQL query and returns the result.
 
         :param query: SQL query.
@@ -50,11 +55,50 @@ class DatabasePostgresql():
         res = res[0]
         return res
 
+
     async def write_query(self, query: str) -> None:
         """Executes one or more SQL commands at once.
 
         :param query: SQL query.
         """
-        self.conn.execute(query)
+        await self.conn.execute(query)
+
+
+    async def create_table(self, table_name: str, obj: pydantic.BaseModel) -> None:
+        """Creates a table if it doesn't exist. The rows and their type are matched to the pydantic object.
+        """
+        mappings = {'int': 'INT', 'integer': 'INT', 'number': 'INT', 'float': 'FLOAT', 'enum': 'INT', 'str': 'TEXT', 'string': 'TEXT', 'datetime': 'DATETIME'}
+        query = f"CREATE TABLE IF NOT EXISTS {table_name} (\n"
+        schema_dict = obj.schema()
+        for key, value in schema_dict["properties"].items():
+            if issubclass(obj.__annotations__[key], Enum) or isinstance(obj.__annotations__[key], Enum):
+                value = mappings['int']
+            else:
+                value = mappings[value['type']]
+            query += f"{key} {value},\n"
+        query = query[:-2] + ");"
+        logger.info(f"Will create a table with this SQL query: {query}")
+        await self.write_query(query)
+
+
+    async def drop_table(self, table_name: str) -> None:
+        query = f"DROP TABLE IF EXISTS {table_name};"
+        await self.write_query(query)
+
+
+    async def insert_into_table(self, table_name: str, obj: pydantic.BaseModel) -> None:
+        query = f"INSERT INTO {table_name} ("
+        schema_dict = obj.schema()
+        values = "VALUES ("
+        for key, _ in schema_dict["properties"].items():
+            query += f"{key}, "
+            if isinstance(obj.dict()[key], str):
+                values += f"{obj.dict()[key]}"
+            else:
+                values += obj.dict()[key]
+        values = values[:-2]
+        query = query[:-2] + ")" + values
+        logger.info(f"Will insert into table {table_name} with this SQL query: {query}")
+        await self.write_query(query)
 
 

@@ -1,5 +1,6 @@
 from enum import Enum
 from typing import List
+from .database_connector_postgresql import DatabasePostgresql
 
 class DatabaseType(Enum):
     POSTGRESQL = "postgresql"
@@ -36,9 +37,9 @@ class DatabaseConnector:
     async def connect(self) -> None:
         """Establishes a connection to the database based on the db_type attribute.
         """
-        if self.db_type == DatabaseType.POSTGRESQL:
+        if self.db_type == DatabaseType.POSTGRESQL.value:
             self.db = DatabasePostgresql()
-            self.db.connect(self.db_user, self.db_pass, self.db_name, self.db_host, self.db_port, db_ssl)
+            await self.db.connect(self.db_user, self.db_pass, self.db_name, self.db_host, self.db_port, self.db_ssl)
         else:
             raise NotImplementedError
 
@@ -59,5 +60,17 @@ class DatabaseConnector:
         :param query: SQL query.
         """
         self.db.write_query(query)
+
+
+    async def create_table(self, table_name: str, obj: object) -> None:
+        await self.db.create_table(table_name, obj)
+
+
+    async def drop_table(self, table_name: str) -> None:
+        await self.db.drop_table(table_name)
+
+
+    async def insert_into_table(self, table_name: str, obj: object) -> None:
+        await self.db.insert_into_table(table_name, obj)
 
 

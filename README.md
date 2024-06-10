@@ -46,16 +46,17 @@ google.com,8,feeling lucky
 ## websites DB
 ```json
 {
-    "db_name": "defaultdb",
-    "table_name": "websites",
+    "table_name": "website",
+    "col_id": "website_id",
     "col_url": "url",
-    "col_timeout": "timeout",
+    "col_timeout": "interval",
     "col_regex": "regex"
 }
 ```
 
 
 # Design considerations
+- It creates two tables in the DB: `website` and `healthcheck`.
 - By using `aiohttp` we can make HTTP requests in an asynchronous manner. It is also more efficient since it allows reusing connections instead of opening and closing a new one at each request. The size of the connection pool is also configurable. https://docs.aiohttp.org/en/stable/http_request_lifecycle.html
 - By using `asyncpg` for PostgreSQL we can do use asyncio for database operations. According to the authors `asyncpg` is on average, 5x faster than psycopg3. https://github.com/MagicStack/asyncpg
 

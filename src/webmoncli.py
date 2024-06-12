@@ -5,6 +5,7 @@ import argparse
 import json
 import ipdb
 import logging
+import asyncio
 from webmon.web_monitor import WebMonitor
 
 
@@ -92,9 +93,10 @@ def main(argv):
     setup_logging(args.log_level)
     wm = WebMonitor(dbconfig_filename, sites_filename, number_healthchecks)
     if args.sites_csv or args.sites_table:
-        wm.run()
+        action = 'monitor'
     if args.drop_tables:
-        wm.drop_tables()
+        action = 'drop-tables'
+    asyncio.run(wm.run(action))
 
 
 if __name__ == '__main__':

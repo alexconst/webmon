@@ -31,22 +31,20 @@ class WebMonitor:
         self.num_checks = num_checks
 
 
-    def run(self):
-        """Performs initialization and continues doing website health check status.
+    async def run(self, action: str):
+        """Main entry point. Performs selected action.
+
+        :param action: supported values: monitor, drop-tables.
+            If 'monitor' then it performs required initialization and then monitors websites health.
+            If 'drop-tables' it drops the tables used for websites and healthchecks.
         """
-        #asyncio.run(self._initialize())
-        #asyncio.run(self._monitor())
-        asyncio.run(self._run())
-
-    async def _run(self):
-        await self._initialize()
-        await self._monitor()
-
-
-    def drop_tables(self):
-        """Drop tables used by app.
-        """
-        asyncio.run(self._drop_tables())
+        if action == 'monitor':
+            await self._initialize()
+            await self._monitor()
+        elif action == 'drop-tables':
+            await self._drop_tables()
+        else:
+            logging.fatal(f'Invalid action: ${action}')
 
 
     async def _drop_tables(self):
@@ -188,18 +186,18 @@ class WebMonitor:
         Saves result in the DB.
         """
         decimal_places = 3
-        status_code = -1
         num_checks = self.num_checks
         while num_checks != 0:
-            error_message = ''
             num_checks -= 1
+            resp = None
+            status_code = -1
+            error_message = ''
             request_timestamp = time.time()
             # make request
             try:
                 resp = await session.request(method="GET", url=website.url)
-                resp = resp.status_code
+                status_code = resp.status
             except asyncio.exceptions as exp:
-                resp = None
                 status_code = 598 # (Informal convention) Network read timeout error
                 error_message += str(exp)
             response_time = time.time() - request_timestamp
@@ -208,9 +206,8 @@ class WebMonitor:
             if website.regex:
                 try:
                     html = await resp.text()
-                    resp = resp.status_code
+                    status_code = resp.status
                 except asyncio.exceptions as exp:
-                    resp = None
                     status_code = 598 # (Informal convention) Network read timeout error
                     error_message += str(exp)
                 try:

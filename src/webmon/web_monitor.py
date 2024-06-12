@@ -50,13 +50,6 @@ class WebMonitor:
 
 
     async def _drop_tables(self):
-        #self._read_config()
-        #cfg = SimpleNamespace(**{k: v for k, v in self.db_config.items()})
-        # DatabaseType[cfg.db_type.upper()]
-        #self.conn = DatabaseConnectorFactory(cfg.db_type, cfg.db_user, cfg.db_pass, cfg.db_name, cfg.db_host, cfg.db_port, cfg.db_ssl)
-        #await self.conn.connect()
-        #await self.conn.drop_table(self.tablename_healthcheck)
-        #await self.conn.drop_table(self.tablename_website)
         self._read_config()
         db_type = DatabaseType[self.db_config['db_type'].upper()]
         self.dbc = await DatabaseConnectorFactory(db_type, self.db_config).get_connector()
@@ -67,21 +60,14 @@ class WebMonitor:
     async def _initialize(self) -> None:
         """Read DB config. Read list of websites to check. Start connection to DB.
         """
-        # read DB config
         self._read_config()
-        # get db connector
         db_type = DatabaseType[self.db_config['db_type'].upper()]
         self.dbc = await DatabaseConnectorFactory(db_type, self.db_config).get_connector()
-        # init DB connection
-        #cfg = SimpleNamespace(**{k: v for k, v in self.db_config.items()})
-        #self.conn = DatabaseConnectorFactory(cfg.db_type, cfg.db_user, cfg.db_pass, cfg.db_name, cfg.db_host, cfg.db_port, cfg.db_ssl)
-        #await self.conn.connect()
         await self._db_init()
         # read site list either from file or DB
         if self.site_list.endswith('.csv'):
             self._read_sites_from_file()
             # but if it's from CSV then we also need to save it in the DB
-            #await self.conn.create_table(self.tablename_website, Website)
             await self.dbc.execute_create_table(self.tablename_website, Website)
         elif self.site_list.endswith('.json'):
             await self._read_sites_from_db()
@@ -100,7 +86,6 @@ class WebMonitor:
         """Read list of websites to perform health checks from a CSV file.
         """
         delimiter = ','
-        #split_host_port = lambda url: (url.split(':')[0], url.split(':')[1]) if ':' in url else (url, '443')
         split_row = lambda row: (row[0], row[1], row[2]) if len(row)==3 else (row[0], row[1], '')
         sites = []
         with open(self.site_list, 'r') as csv_file:
@@ -111,7 +96,6 @@ class WebMonitor:
                 if idx == 0 and f'host{delimiter}interval' in str(row):
                     continue
                 url, interval, regex = split_row(row)
-                #host, port = split_host_port(url)
                 url = WebMonitor.get_valid_url(url)
                 sites.append(Website(website_id=-1, url=url, interval=interval, regex=regex))
         self.site_list = sites
@@ -158,7 +142,6 @@ class WebMonitor:
         """Makes required DB initializations.
 
         Creates tables for saving results of health checks."""
-        #await self.conn.create_table(self.tablename_healthcheck, Healthcheck)
         await self.dbc.execute_create_table(self.tablename_website, Website)
         await self.dbc.execute_create_table(self.tablename_healthcheck, Healthcheck)
 
@@ -166,7 +149,6 @@ class WebMonitor:
     async def _db_insert_healthcheck_result(self, check: Healthcheck) -> None:
         """Insert result of a website health check in the DB.
         """
-        #await self.conn.create_table(self.tablename_healthcheck, check)
         await self.dbc.execute_insert_into_table(self.tablename_healthcheck, check)
 
 

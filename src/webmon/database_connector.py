@@ -26,7 +26,6 @@ class DatabaseConnector:
         self.db_host = db_host
         self.db_port = db_port
         self.db_ssl = db_ssl
-        #self.db = None
 
 
     @abstractmethod
@@ -120,46 +119,4 @@ class DatabaseConnector:
         query = 'SELECT VERSION()'
         return query
 
-
-
-#    async def connect(self) -> None:
-#        """Establishes a connection to the database based on the db_type attribute.
-#        """
-#        if self.db_type == DatabaseType.POSTGRESQL.value:
-#            self.db = DatabasePostgresql()
-#            await self.db.connect(self.db_user, self.db_pass, self.db_name, self.db_host, self.db_port, self.db_ssl)
-#        else:
-#            raise NotImplementedError
-#
-#
-#    async def read_query(self, query: str) -> List[dict]:
-#        """Executes a SQL query and returns the result.
-#
-#        :param query: SQL query.
-#        :return: Result of query.
-#        :rtype: list of dict elements.
-#        """
-#        return self.db.read_query(query)
-#
-#
-#    async def write_query(self, query: str) -> None:
-#        """Executes one or more SQL commands at once.
-#
-#        :param query: SQL query.
-#        """
-#        self.db.write_query(query)
-#
-#
-#    async def create_table(self, table_name: str, obj: object) -> None:
-#        await self.db.create_table(table_name, obj)
-#
-#
-#    async def drop_table(self, table_name: str) -> None:
-#        await self.db.drop_table(table_name)
-#
-#
-#    async def insert_into_table(self, table_name: str, obj: object) -> None:
-#        await self.db.insert_into_table(table_name, obj)
-#
-#
 

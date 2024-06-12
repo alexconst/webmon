@@ -29,6 +29,7 @@ class WebMonitor:
         self.tablename_website = 'website'
         self.tablename_healthcheck = 'healthcheck'
         self.num_checks = num_checks
+        self.dbc = None     # DB connector
 
 
     async def run(self, action: str):
@@ -45,6 +46,7 @@ class WebMonitor:
             await self._drop_tables()
         else:
             logging.fatal(f'Invalid action: ${action}')
+        await self.dbc.close()
 
 
     async def _drop_tables(self):

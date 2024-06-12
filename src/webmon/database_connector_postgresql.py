@@ -36,11 +36,18 @@ class DatabaseConnectorPostgresql(DatabaseConnector):
                 host=self.db_host,
                 port=self.db_port,
                 ssl=self.db_ssl)
+        #self.conn_pool = pool
+        #yield
+        #pool.close()
+
+
+    async def close(self) -> None:
+        await self.conn_pool.close()
 
 
     async def db_fetch(self, query) -> List[dict]:
-        #conn = await self.conn_pool.acquire()
         result = []
+        #conn = await self.conn_pool.acquire()
         #try:
         #    result = await conn.fetch(query)
         #finally:

@@ -67,9 +67,10 @@ google.com,8,feeling lucky
 
 
 
-# Credit / Attributions
+# References
 - regex expression adapted from https://stackoverflow.com/questions/9530950/parsing-hostname-and-port-from-string-or-url/9531189#9531189
 - async info and logic from https://realpython.com/async-io-python
+- asyncpg connection pool issue https://stackoverflow.com/questions/66444620/asyncpg-cannot-perform-operation-another-operation-is-in-progress
 
 
 # TODO

@@ -63,13 +63,18 @@ profiling: args
 		tuna app.prof ;\
 	)
 
-tests: test
-
-# run tests using pytest
-test:
+# run unit tests using pytest
+tests-unit:
 	@( \
 		[ -n "$$VIRTUAL_ENV" ] || . venv/bin/activate ;\
 		pytest -s -v --log-level=DEBUG tests ;\
+	)
+
+# run integration tests using pytest
+tests-integration:
+	@( \
+		[ -n "$$VIRTUAL_ENV" ] || . venv/bin/activate ;\
+		pytest -s -v --log-level=DEBUG tests_integration ;\
 	)
 
 # run tests and start pdb when a test fails

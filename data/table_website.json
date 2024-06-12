@@ -1,0 +1,8 @@
+{
+    "table_name": "website",
+    "col_id": "website_id",
+    "col_url": "url",
+    "col_timeout": "interval",
+    "col_regex": "regex"
+}
+

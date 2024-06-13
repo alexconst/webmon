@@ -74,15 +74,16 @@ class WebMonitor:
         self.dbc = await DatabaseConnectorFactory(db_type, self.db_config).get_connector()
         await self._db_init()
         # if a website list was provided then read it and setup the DB
-        if self.site_list.endswith('.csv') and os.path.exists(self.site_list):
-            self._read_sites_from_file()
-            await self.dbc.execute_create_table(self.tablename_website, Website)
-            for website in self.site_list:
-                await self._db_insert_website_entry(website)
-        else:
-            logger.error(f"Invalid file provided. Either file doesn't exist or it doesn't have a .csv extension: {self.site_list}")
-            await self._finish()
-            sys.exit(1)
+        if self.site_list:
+            if self.site_list.endswith('.csv') and os.path.exists(self.site_list):
+                self._read_sites_from_file()
+                await self.dbc.execute_create_table(self.tablename_website, Website)
+                for website in self.site_list:
+                    await self._db_insert_website_entry(website)
+            else:
+                logger.error(f"Invalid file provided. Either file doesn't exist or it doesn't have a .csv extension: {self.site_list}")
+                await self._finish()
+                sys.exit(1)
         # always read website list from the DB (either due to user option, or just to have website_id info as per the DB)
         await self._read_sites_from_db()
 
@@ -147,6 +148,8 @@ class WebMonitor:
         self.site_list = res
         if len(res) == 0:
             logging.fatal("The DB doesn't have any entries for the website checks. Please re-run using the file option.")
+            await self._finish()
+            sys.exit(1)
 
 
     async def _db_init(self) -> None:
@@ -195,8 +198,9 @@ class WebMonitor:
             resp = None
             status_code = -1
             error_message = ''
-            request_timestamp = time.time()
 
+            await asyncio.sleep(website.interval)
+            request_timestamp = time.time()
             # make request
             try:
                 resp = await session.request(method="GET", url=website.url_uq)
@@ -241,5 +245,4 @@ class WebMonitor:
                     regex_match_status=match_status,
                     error_message=error_message)
             await self._db_insert_healthcheck_entry(check)
-            await asyncio.sleep(website.interval)
 

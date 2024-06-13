@@ -81,7 +81,7 @@ class WebMonitor:
                 for website in self.site_list:
                     await self._db_insert_website_entry(website)
             else:
-                logger.error(f"Invalid file provided. Either file doesn't exist or it doesn't have a .csv extension: {self.site_list}")
+                logger.fatal(f"Invalid file provided. Either file doesn't exist or it doesn't have a .csv extension: {self.site_list}")
                 await self._finish()
                 sys.exit(1)
         # always read website list from the DB (either due to user option, or just to have website_id info as per the DB)
@@ -147,7 +147,7 @@ class WebMonitor:
         res = await self.dbc.fetch_all_from_table(self.tablename_website, Website)
         self.site_list = res
         if len(res) == 0:
-            logging.fatal("The DB doesn't have any entries for the website checks. Please re-run using the file option.")
+            logger.fatal("The DB doesn't have any entries for the website checks. Please re-run using the file option.")
             await self._finish()
             sys.exit(1)
 

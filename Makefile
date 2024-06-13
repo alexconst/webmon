@@ -18,7 +18,7 @@ $(eval $(RUN_ARGS):;@:)
 endif
 
 
-APP=src/webmon.py
+APP=src/webmoncli.py
 DEF_ARGS=
 CMD_RUN=python $(APP) $(DEF_ARGS) $(RUN_ARGS)
 CMD_PROFILING=python -mcProfile -o app.prof $(APP) $(DEF_ARGS) $(RUN_ARGS)

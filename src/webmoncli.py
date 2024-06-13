@@ -19,10 +19,10 @@ def setup_logging(level):
     )
 
 def main(argv):
-    description = "Monitor list of sites and save metrics in database"
+    description = "Monitor list of sites and save metrics in database."
     use_examples = "Examples:"
     use_examples += "\n{} --db-config secrets/db_postgresql.json --sites-csv data/websites_top15.csv --number-healthchecks 5".format(argv[0])
-    use_examples += "\n{} --db-config secrets/db_postgresql.json --sites-table data/table_website.json --number-healthchecks 5".format(argv[0])
+    use_examples += "\n{} --db-config secrets/db_postgresql.json --sites-table --number-healthchecks 5".format(argv[0])
     use_examples += "\n{} --db-config secrets/db_postgresql.json --drop-tables".format(argv[0])
 
     parser = argparse.ArgumentParser(description=description, epilog=use_examples, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -30,10 +30,9 @@ def main(argv):
     parser.add_argument(
         '--log-level',
         metavar=('LOG_LEVEL'),
-        type=str,
         nargs=1,
-        default=logging.INFO,
-        help='Desired log level. Defaults to INFO')
+        default=['INFO'],
+        help='Desired log level. Defaults to INFO. To only view sites that failed healthechecks use ERROR')
     parser.add_argument(
         '--db-config',
         metavar=('FILENAME_DBCONFIG'),
@@ -54,10 +53,8 @@ def main(argv):
         help='Number of healthchecks to perform per websites. For an infinite number use -1.')
     parser.add_argument(
         '--sites-table',
-        metavar=('FILENAME_TABLE'),
-        type=str,
-        nargs=1,
-        help='JSON file with table information on how to get the site list from the DB. Includes: db table name, row name for each field.')
+        action='store_true',
+        help='For the website checks rules, use the pre-existing information in the DB (eg: which was inserted from a previous execution).')
     parser.add_argument(
         '--drop-tables',
         action='store_true',
@@ -80,17 +77,12 @@ def main(argv):
         number_healthchecks = 0
     else:
         number_healthchecks = int(args.number_healthchecks[0])
-    #if not args.sites_csv and not args.sites_table:
-    #    print("ERROR: either a csv file or a table file also needs to be provided.")
-    #    sys.exit(1)
     if args.sites_csv:
         sites_filename = args.sites_csv[0]
-    elif args.sites_table:
-        sites_filename = args.sites_table[0]
     else:
         sites_filename = ''
 
-    setup_logging(args.log_level)
+    setup_logging(args.log_level[0])
     wm = WebMonitor(dbconfig_filename, sites_filename, number_healthchecks)
     if args.sites_csv or args.sites_table:
         action = 'monitor'

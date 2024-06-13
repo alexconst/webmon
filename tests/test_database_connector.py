@@ -12,14 +12,14 @@ def clean(text):
 
 
 def test_get_query_create_table():
-    website = Website(website_id=-1, url='https://foo.bar', interval=5, regex='')
+    website = Website(website_id=-1, url_uq='https://foo.bar', interval=5, regex='')
 
     res = DatabaseConnector.get_query_create_table('website', website, True)
-    exp = 'CREATE TABLE IF NOT EXISTS website (\nwebsite_id SERIAL,\nurl TEXT,\ninterval INT,\nregex TEXT,\nPRIMARY KEY (website_id)\n);'
+    exp = 'CREATE TABLE IF NOT EXISTS website (\nwebsite_id SERIAL,\nurl_uq TEXT UNIQUE,\ninterval INT,\nregex TEXT,\nPRIMARY KEY (website_id)\n);'
     assert clean(res) == clean(exp)
 
     res = DatabaseConnector.get_query_create_table('website', website, False)
-    exp = 'CREATE TABLE IF NOT EXISTS website (\nwebsite_id INT,\nurl TEXT,\ninterval INT,\nregex TEXT);'
+    exp = 'CREATE TABLE IF NOT EXISTS website (\nwebsite_id INT,\nurl_uq TEXT,\ninterval INT,\nregex TEXT);'
     assert clean(res) == clean(exp)
 
     check = Healthcheck(check_id=123, website_fk=33, request_timestamp=1718055080.050827, response_time=3.14, http_status_code=200, regex_match_status=RegexMatchStatus.OK, error_message='')
@@ -29,7 +29,7 @@ def test_get_query_create_table():
 
 
 def test_get_query_drop_table():
-    website = Website(website_id=-1, url='https://foo.bar', interval=5, regex='')
+    website = Website(website_id=-1, url_uq='https://foo.bar', interval=5, regex='')
 
     res = DatabaseConnector.get_query_drop_table('website')
     exp = 'DROP TABLE IF EXISTS website;'
@@ -37,26 +37,25 @@ def test_get_query_drop_table():
 
 
 def test_get_query_insert_into_table():
-    #ipdb.set_trace()
-    website = Website(website_id=-1, url='https://foo.bar', interval=5, regex='')
+    website = Website(website_id=-1, url_uq='https://foo.bar', interval=5, regex='')
 
     res = DatabaseConnector.get_query_insert_into_table('website', website, True)
-    exp = "INSERT INTO website (url, interval) VALUES ('https://foo.bar', 5)"
+    exp = "INSERT INTO website (url_uq, interval) VALUES ('https://foo.bar', 5) ON CONFLICT (url_uq) DO NOTHING;"
     assert clean(res) == clean(exp)
 
     res = DatabaseConnector.get_query_insert_into_table('website', website, False)
-    exp = "INSERT INTO website (website_id, url, interval) VALUES (-1, 'https://foo.bar', 5)"
+    exp = "INSERT INTO website (website_id, url_uq, interval) VALUES (-1, 'https://foo.bar', 5);"
     assert clean(res) == clean(exp)
 
 
-    website_with_regex = Website(website_id=-1, url='https://foo.bar', interval=5, regex='welcome')
+    website_with_regex = Website(website_id=-1, url_uq='https://foo.bar', interval=5, regex='welcome')
 
     res = DatabaseConnector.get_query_insert_into_table('website', website_with_regex, True)
-    exp = "INSERT INTO website (url, interval, regex) VALUES ('https://foo.bar', 5, 'welcome')"
+    exp = "INSERT INTO website (url_uq, interval, regex) VALUES ('https://foo.bar', 5, 'welcome') ON CONFLICT (url_uq) DO NOTHING;"
     assert clean(res) == clean(exp)
 
     res = DatabaseConnector.get_query_insert_into_table('website', website_with_regex, False)
-    exp = "INSERT INTO website (website_id, url, interval, regex) VALUES (-1, 'https://foo.bar', 5, 'welcome')"
+    exp = "INSERT INTO website (website_id, url_uq, interval, regex) VALUES (-1, 'https://foo.bar', 5, 'welcome');"
     assert clean(res) == clean(exp)
 
 

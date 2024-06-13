@@ -5,11 +5,14 @@ import json
 import re
 import logging
 from types import SimpleNamespace
+from typing import List, Optional
 import time
 from .database_connector_factory import DatabaseConnectorFactory, DatabaseType
 from .website import Website
 from .healthcheck import Healthcheck, RegexMatchStatus
 import ipdb
+import sys
+import os
 
 logger = logging.getLogger("webmonitor")
 
@@ -18,18 +21,18 @@ class WebMonitor:
     """
 
     def __init__(self, db_config: str, site_list: str, num_checks: int):
-        """Constructor.
+        """Constructor. Lazy initialization.
 
         :param db_config: filename with DB config
         :param site_list: filename with list of websites to check
         :param num_checks: how many checks to perform per website before finishing. Use -1 for infinite.
         """
-        self.db_config = db_config
-        self.site_list = site_list
+        self.db_config = db_config          # after proper init it will be a map with the DB config
+        self.site_list = site_list          # after proper init it will be a list of website healthcheck rules
         self.tablename_website = 'website'
         self.tablename_healthcheck = 'healthcheck'
         self.num_checks = num_checks
-        self.dbc = None     # DB connector
+        self.dbc = None                     # DB connector
 
 
     async def run(self, action: str):
@@ -46,6 +49,10 @@ class WebMonitor:
             await self._drop_tables()
         else:
             logging.fatal(f'Invalid action: ${action}')
+        await self._finish()
+
+
+    async def _finish(self):
         await self.dbc.close()
 
 
@@ -60,19 +67,24 @@ class WebMonitor:
     async def _initialize(self) -> None:
         """Read DB config. Read list of websites to check. Start connection to DB.
         """
+        # read DB config
         self._read_config()
+        # init DB
         db_type = DatabaseType[self.db_config['db_type'].upper()]
         self.dbc = await DatabaseConnectorFactory(db_type, self.db_config).get_connector()
         await self._db_init()
-        # read site list either from file or DB
-        if self.site_list.endswith('.csv'):
+        # if a website list was provided then read it and setup the DB
+        if self.site_list.endswith('.csv') and os.path.exists(self.site_list):
             self._read_sites_from_file()
-            # but if it's from CSV then we also need to save it in the DB
             await self.dbc.execute_create_table(self.tablename_website, Website)
-        elif self.site_list.endswith('.json'):
-            await self._read_sites_from_db()
+            for website in self.site_list:
+                await self._db_insert_website_entry(website)
         else:
-            raise NotImplementedError
+            logger.error(f"Invalid file provided. Either file doesn't exist or it doesn't have a .csv extension: {self.site_list}")
+            await self._finish()
+            sys.exit(1)
+        # always read website list from the DB (either due to user option, or just to have website_id info as per the DB)
+        await self._read_sites_from_db()
 
 
     def _read_config(self) -> None:
@@ -97,7 +109,7 @@ class WebMonitor:
                     continue
                 url, interval, regex = split_row(row)
                 url = WebMonitor.get_valid_url(url)
-                sites.append(Website(website_id=-1, url=url, interval=interval, regex=regex))
+                sites.append(Website(website_id=-1, url_uq=url, interval=interval, regex=regex))
         self.site_list = sites
 
 
@@ -131,12 +143,11 @@ class WebMonitor:
     async def _read_sites_from_db(self) -> None:
         """Read list of websites to perform health checks from the DB.
         """
-        # TODO: read sites from DB
-        #with open(self.db_config, 'r') as file:
-        #    self.db_config = json.load(file)
-        #cfg = SimpleNamespace(**{k: v for k, v in self.db_config.items()})
-        #self.site_list
-        pass
+        res = await self.dbc.fetch_all_from_table(self.tablename_website, Website)
+        self.site_list = res
+        if len(res) == 0:
+            logging.fatal("The DB doesn't have any entries for the website checks. Please re-run using the file option.")
+
 
     async def _db_init(self) -> None:
         """Makes required DB initializations.
@@ -146,7 +157,15 @@ class WebMonitor:
         await self.dbc.execute_create_table(self.tablename_healthcheck, Healthcheck)
 
 
-    async def _db_insert_healthcheck_result(self, check: Healthcheck) -> None:
+    async def _db_insert_website_entry(self, website: Website) -> None:
+        """Insert website healthcheck rule in the DB.
+
+        :param website: website to insert as new row
+        """
+        await self.dbc.execute_insert_into_table(self.tablename_website, website)
+
+
+    async def _db_insert_healthcheck_entry(self, check: Healthcheck) -> None:
         """Insert result of a website health check in the DB.
         """
         await self.dbc.execute_insert_into_table(self.tablename_healthcheck, check)
@@ -177,21 +196,21 @@ class WebMonitor:
             status_code = -1
             error_message = ''
             request_timestamp = time.time()
+
             # make request
             try:
-                resp = await session.request(method="GET", url=website.url)
+                resp = await session.request(method="GET", url=website.url_uq)
                 status_code = resp.status
-            except asyncio.exceptions as exp:
+            except Exception as exp:
                 status_code = 598 # (Informal convention) Network read timeout error
                 error_message += str(exp)
             response_time = time.time() - request_timestamp
-            logger.info("Got response [%s] for URL: %s", resp.status, website.url)
             # check regex
             if website.regex:
                 try:
                     html = await resp.text()
                     status_code = resp.status
-                except asyncio.exceptions as exp:
+                except Exception as exp:
                     status_code = 598 # (Informal convention) Network read timeout error
                     error_message += str(exp)
                 try:
@@ -205,6 +224,14 @@ class WebMonitor:
             else:
                 match_status = RegexMatchStatus.NA
                 response_time = time.time() - request_timestamp
+
+            msg = f'Got HTTP response code [{status_code}] for URL: {website.url_uq}'
+            if status_code >= 300:
+                logger.error(msg)
+            else:
+                logger.info(msg)
+
+            error_message = error_message[:250] # trim error message (defensive)
             check = Healthcheck(
                     check_id=-1,
                     website_fk=website.website_id,
@@ -213,6 +240,6 @@ class WebMonitor:
                     http_status_code=status_code,
                     regex_match_status=match_status,
                     error_message=error_message)
-            await self._db_insert_healthcheck_result(check)
+            await self._db_insert_healthcheck_entry(check)
             await asyncio.sleep(website.interval)
 

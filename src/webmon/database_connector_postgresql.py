@@ -72,6 +72,24 @@ class DatabaseConnectorPostgresql(DatabaseConnector):
         return res
 
 
+    async def fetch_all_from_table(self, table_name: str, cls: pydantic.BaseModel) -> List[pydantic.BaseModel]:
+        """Returns all rows in table.
+
+        :param table_name: table name
+        :param cls: pydantic class object reference value.
+        :return: a list of instances of cls representing the returned rows
+        :rtype: list
+        """
+        query = DatabaseConnector.get_query_select_all(table_name)
+        reply = await self.db_fetch(query)
+        res = []
+        for row in reply:
+            row = dict(row)
+            row = DatabaseConnector.row_to_pydantic(row, cls)
+            res += [row]
+        return res
+
+
     async def execute_create_table(self, table_name: str, obj: pydantic.BaseModel) -> None:
         """Creates a table if it doesn't exist. The rows and their type are matched to the pydantic object.
 

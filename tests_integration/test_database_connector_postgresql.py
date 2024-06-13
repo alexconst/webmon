@@ -46,7 +46,7 @@ class TestDatabaseConnectorPostgresql:
 
     async def test_execute_table_lifecycle(self):
         table_name = TestDatabaseConnectorPostgresql.test_table_name
-        website = Website(website_id=-1, url='https://foo.bar', interval=5, regex='')
+        website = Website(website_id=-1, url_uq='https://foo.bar', interval=5, regex='')
         query = f"SELECT COUNT(*) FROM information_schema.tables WHERE table_name = '{table_name}'"
 
         try:
@@ -67,10 +67,9 @@ class TestDatabaseConnectorPostgresql:
 
 
     async def test_execute_insert_table(self):
-        #ipdb.set_trace()
         table_name = TestDatabaseConnectorPostgresql.test_table_name
-        website1 = Website(website_id=-1, url='https://foo.bar', interval=5, regex='')
-        website2 = Website(website_id=-1, url='https://matrix.bar', interval=10, regex='neo')
+        website1 = Website(website_id=-1, url_uq='https://foo.bar', interval=5, regex='')
+        website2 = Website(website_id=-1, url_uq='https://matrix.bar', interval=10, regex='neo')
         query_count = f"SELECT COUNT(*) FROM {table_name}"
         query_elem = f"SELECT * FROM {table_name} WHERE interval = 10"
 
@@ -84,9 +83,29 @@ class TestDatabaseConnectorPostgresql:
             # assert primary key auto increments
             res = await TestDatabaseConnectorPostgresql.db.db_fetch(query_elem)
             assert res[0].get('website_id') == 2
-            assert res[0].get('url') == 'https://matrix.bar'
+            assert res[0].get('url_uq') == 'https://matrix.bar'
         finally:
             # clean up
             await TestDatabaseConnectorPostgresql.db.execute_drop_table(table_name)
+
+
+    async def test_execute_insert_table(self):
+        table_name = TestDatabaseConnectorPostgresql.test_table_name
+        website1 = Website(website_id=1, url_uq='https://foo.bar', interval=5, regex='')
+        website2 = Website(website_id=2, url_uq='https://matrix.bar', interval=10, regex='neo')
+        try:
+            # setup
+            await TestDatabaseConnectorPostgresql.db.execute_create_table(table_name, website1)
+            await TestDatabaseConnectorPostgresql.db.execute_insert_into_table(table_name, website1)
+            await TestDatabaseConnectorPostgresql.db.execute_insert_into_table(table_name, website2)
+            # test
+            res = await TestDatabaseConnectorPostgresql.db.fetch_all_from_table(table_name, Website)
+            # assert
+            assert res[0] == website1
+            assert res[1] == website2
+        finally:
+            # clean up
+            await TestDatabaseConnectorPostgresql.db.execute_drop_table(table_name)
+
 
 

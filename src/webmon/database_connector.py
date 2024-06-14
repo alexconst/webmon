@@ -94,6 +94,13 @@ class DatabaseConnector:
         :return: SQL query.
         :rtype: string
         """
+
+        def sanitize(s: str):
+            s = s.replace("'", "''")
+            s = s.replace('"', '""')
+            s = s.replace('\\', '\\\\')
+            return s
+
         query = f"INSERT INTO {table_name} ("
         schema_dict = obj.model_json_schema()
         values = "VALUES ("
@@ -114,6 +121,7 @@ class DatabaseConnector:
                 continue
             query += f"{key}, "
             if isinstance(val, str):
+                val = sanitize(val)
                 values += f"'{val}', "
             elif issubclass(val.__class__, Enum) or isinstance(val, Enum):
                 values += f"{str(val.value)}, "
@@ -150,7 +158,7 @@ class DatabaseConnector:
 
     @staticmethod
     def row_to_pydantic(row: dict, cls: pydantic.BaseModel) -> pydantic.BaseModel:
-        """Sanitize and convert a row representation to a given pydantic object.
+        """Convert a row representation to a given pydantic object.
         Required because pydantic doesn't accept None values.
 
         If a value is None then it will be initialized as follows:

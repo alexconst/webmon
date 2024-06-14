@@ -46,7 +46,9 @@ def retry(**kwargs):
                     return await func(*args, **kwargs)
                 except Exception as exc:
                     if logger:
-                        logger.error(f"Error on attempt {attempt + 1}. Will sleep for {current_delay} seconds. The error was: {str(exc)}")
+                        msg = f"Error on attempt {attempt + 1}. Will sleep for {current_delay} seconds."
+                        msg += f" Exception: {exc.__class__} Error message: {str(exc)}"
+                        logger.error(msg)
                     current_delay *= backoff
                     if current_delay > max_interval:
                         current_delay = max_interval

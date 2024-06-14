@@ -1,5 +1,5 @@
 import asyncio
-from aiohttp import ClientSession
+from aiohttp import ClientSession, TCPConnector, ClientTimeout
 import csv
 import json
 import re
@@ -86,6 +86,8 @@ class WebMonitor:
                 sys.exit(1)
         # always read website list from the DB (either due to user option, or just to have website_id info as per the DB)
         await self._read_sites_from_db()
+        # increase system resource limits
+        self._config_system_resource_limits()
 
 
     def _read_config(self) -> None:
@@ -152,6 +154,16 @@ class WebMonitor:
             sys.exit(1)
 
 
+    def _config_system_resource_limits(self) -> None:
+        import resource
+        hint = len(self.site_list)
+        soft_limit, hard_limit = resource.getrlimit(resource.RLIMIT_NOFILE)
+        new_soft_limit = max(soft_limit + hint*3, resource.RLIM_INFINITY)
+        # increase max num FDs soft limit to more than twice the number of websites, and maintain the hard limit because only root can increase it
+        resource.setrlimit(resource.RLIMIT_NOFILE, (new_soft_limit, hard_limit))
+        logger.info(f"OS's soft limit on max number of file descriptors: old value was {soft_limit}, new value is {new_soft_limit}.")
+
+
     async def _db_init(self) -> None:
         """Makes required DB initializations.
 
@@ -177,7 +189,13 @@ class WebMonitor:
     async def _monitor(self) -> None:
         """Creates and starts a coroutine for each website that needs to be monitored.
         """
-        async with ClientSession() as session:
+        logging.basicConfig(level=logging.DEBUG)
+        #ka_timeout = 330
+        #connector = TCPConnector(limit=0, keepalive_timeout=ka_timeout) # using TCPConnector with limit=0 it removes the limit on number of connections
+        #total_timeout = ClientTimeout(total=30) # fail fast; reduces default of 300 to 30
+        connector = TCPConnector(limit=None, keepalive_timeout=330)
+        total_timeout = ClientTimeout(total=15)
+        async with ClientSession(connector=connector, timeout=total_timeout) as session:
             tasks = []
             for website in self.site_list:
                 tasks.append(self._healthcheck_website(session, website))
@@ -200,23 +218,30 @@ class WebMonitor:
             error_message = ''
 
             await asyncio.sleep(website.interval)
+            logger.debug('Will make a request for: {website.url_uq}')
             request_timestamp = time.time()
             # make request
             try:
                 resp = await session.request(method="GET", url=website.url_uq)
                 status_code = resp.status
-            except Exception as exp:
+            except asyncio.TimeoutError as exp:
                 status_code = 598 # (Informal convention) Network read timeout error
-                error_message += str(exp)
+                error_message += f"[{str(exp.__class__)}] {str(exp)}"
+            except Exception as exp:
+                status_code = 555 # observed expections include: ClientConnectorError, ClientOSError
+                error_message += f"[{str(exp.__class__)}] {str(exp)}"
             response_time = time.time() - request_timestamp
             # check regex
-            if website.regex:
+            if website.regex and resp:
                 try:
                     html = await resp.text()
                     status_code = resp.status
-                except Exception as exp:
+                except asyncio.TimeoutError as exp:
                     status_code = 598 # (Informal convention) Network read timeout error
-                    error_message += str(exp)
+                    error_message += f"[{str(exp.__class__)}] {str(exp)}"
+                except Exception as exp:
+                    status_code = 555 # if this happens it will need investigation
+                    error_message += f"[{str(exp.__class__)}] {str(exp)}"
                 try:
                     pattern = re.compile(website.regex)
                     if pattern.search(html):
@@ -224,7 +249,7 @@ class WebMonitor:
                     else:
                         match_status = RegexMatchStatus.FAIL
                 except Exception as exp:
-                    error_message += str(exp)
+                    error_message += f"[{str(exp.__class__)}] {str(exp)}"
             else:
                 match_status = RegexMatchStatus.NA
                 response_time = time.time() - request_timestamp
@@ -235,7 +260,7 @@ class WebMonitor:
             else:
                 logger.info(msg)
 
-            error_message = error_message[:250] # trim error message (defensive)
+            error_message = error_message[:250] # trim error message to something manageable
             check = Healthcheck(
                     check_id=-1,
                     website_fk=website.website_id,
@@ -245,4 +270,5 @@ class WebMonitor:
                     regex_match_status=match_status,
                     error_message=error_message)
             await self._db_insert_healthcheck_entry(check)
+            logger.debug('Finished inserting in DB the check results for: {website.url_uq}')
 

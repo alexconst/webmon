@@ -60,6 +60,43 @@ google.com,8,feeling lucky
 
 
 
+# Development tips
+
+## pgsql inspect
+```bash
+export $(jq -r 'to_entries|map("\(.key)=\(.value)")|.[]' secrets/db_postgresql.json)
+psql --host "$db_host" --port "$db_port" --username "$db_user" --password --dbname "$db_name"
+```
+
+```sql
+SELECT * FROM healthcheck ORDER BY check_id DESC LIMIT 20;
+SELECT * FROM website ORDER BY website_id DESC LIMIT 10;
+
+SELECT COUNT(*) FROM website;
+SELECT COUNT(*) FROM healthcheck;
+
+SELECT COUNT(*) FROM healthcheck WHERE http_status_code = 598;
+SELECT COUNT(*) FROM healthcheck WHERE http_status_code = 555;
+```
+
+## generate list of top websites
+sources for the list of top websites:
+https://gist.githubusercontent.com/bejaneps/ba8d8eed85b0c289a05c750b3d825f61/raw/6827168570520ded27c102730e442f35fb4b6a6d/websites.csv
+https://gist.github.com/chilts/7229605
+    https://downloads.majesticseo.com/majestic_million.csv
+
+```bash
+# top 100 websites
+wget 'https://gist.githubusercontent.com/bejaneps/ba8d8eed85b0c289a05c750b3d825f61/raw/6827168570520ded27c102730e442f35fb4b6a6d/websites.csv'
+cat websites.csv | head -n 100 | cut -f2 -d',' | while read line; do echo "$line,$(($RANDOM % 295 + 5))"; done > websites_100.csv
+# NOTE: for majestic_million.csv use `cut -f3 ...`
+
+# top 100 websites with random text pattern to search for
+websites="websites_100" ; words='/usr/share/dict/american-english' ; cat "$websites.csv" | while read line; do if (( $RANDOM % 5 == 0 )); then word1=$(shuf -n 1 $words);  word2=$(shuf -n 1 $words); echo "$line,\"$word1 $word2\""; else echo "$line"; fi; done > "${websites}_regex.csv"
+```
+
+
+
 # References
 - regex expression adapted from https://stackoverflow.com/questions/9530950/parsing-hostname-and-port-from-string-or-url/9531189#9531189
 - async info and logic from https://realpython.com/async-io-python
@@ -69,6 +106,26 @@ google.com,8,feeling lucky
 
 
 # TODO / Future Work
+
+## system ulimits
+```bash
+ulimit -a
+ulimit -Ha
+```
+By default the soft limit for FD is 1024 :(
+Should be able to override that with `ulimit -n $number`
+
+This setting may also be relevant: `/proc/sys/net/core/somaxconn`
+
+```python
+import resource
+
+# Set the soft limit to a very high value (e.g., 20000) and the hard limit to infinity
+resource.setrlimit(resource.RLIMIT_NOFILE, (2 ** 14, resource.RLIM_INFINITY))
+```
+
+Related `/proc/sys/net/ipv4/tcp_keepalive_time`
+
 
 ## configure pool sizes
 For web requests and DB requests.

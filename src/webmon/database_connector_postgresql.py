@@ -5,6 +5,7 @@ import pydantic
 import logging
 from enum import Enum
 from .database_connector import DatabaseConnector
+from .retry import retry
 
 logger = logging.getLogger("webmonitor")
 
@@ -42,6 +43,7 @@ class DatabaseConnectorPostgresql(DatabaseConnector):
         await self.conn_pool.close()
 
 
+    @retry(tries=5, delay=30, backoff=2, max_interval=120, logger=logger)
     async def db_fetch(self, query) -> List[dict]:
         """Runs query and returns results.
 
@@ -53,6 +55,7 @@ class DatabaseConnectorPostgresql(DatabaseConnector):
         return result
 
 
+    @retry(tries=5, delay=30, backoff=2, max_interval=120, logger=logger)
     async def db_execute(self, query) -> None:
         """Runs query.
         """

@@ -10,6 +10,9 @@ import json
 import ipdb
 
 
+# uncomment if debugging:
+#import logging
+#logging.getLogger("webmonitor").setLevel(logging.DEBUG)
 
 
 @pytest.mark.asyncio(scope="class")

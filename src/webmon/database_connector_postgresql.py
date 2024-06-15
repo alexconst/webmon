@@ -126,9 +126,8 @@ class DatabaseConnectorPostgresql(DatabaseConnector):
         :param table_name: table name.
         :param obj: value to insert in the table.
         """
-        query = DatabaseConnector.get_query_insert_into_table(table_name, obj, True)
-        await self.db_execute(query)
-
+        query, data = DatabaseConnector.get_query_insert_many_into_table(table_name, [obj], True)
+        await self.db_executemany(query, data)
 
     async def execute_insert_many_into_table(self, table_name: str, objs: List[pydantic.BaseModel]) -> None:
         """Inserts the corresponding row representation of obj into a table.
@@ -136,6 +135,6 @@ class DatabaseConnectorPostgresql(DatabaseConnector):
         :param table_name: table name.
         :param obj: list of object values to insert in the table.
         """
-        query, data = DatabaseConnector.get_querypair_insert_many_into_table(table_name, objs, True)
+        query, data = DatabaseConnector.get_query_insert_many_into_table(table_name, objs, True)
         await self.db_executemany(query, data)
 

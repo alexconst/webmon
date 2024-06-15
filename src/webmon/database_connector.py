@@ -84,58 +84,7 @@ class DatabaseConnector:
 
 
     @staticmethod
-    def get_query_insert_into_table(table_name: str, obj: pydantic.BaseModel, use_name_hints: bool) -> str:
-        """Generate SQL query to insert row into table. The new row will match the pydantic object.
-
-        :param table_name: table name.
-        :param obj: values to be inserted as a row.
-        :param use_name_hints: if True it will handle some fields in a special form
-            If the name is either `id` or ending with substring `_id` then it will ignore it (ie primary key).
-            If the name ends in substring `_uq` then the query will set to ignore conflicts.
-        :return: SQL query.
-        :rtype: string
-        """
-
-        def sanitize(s: str):
-            s = s.replace("'", "''")
-            s = s.replace('"', '""')
-            s = s.replace('\\', '\\\\')
-            return s
-
-        query = f"INSERT INTO {table_name} ("
-        schema_dict = obj.model_json_schema()
-        values = "VALUES ("
-        conflict_head = 'ON CONFLICT ('
-        conflict_mid = ''
-        conflict_tail = ') DO NOTHING;'
-        for key, _ in schema_dict["properties"].items():
-            val = obj.model_dump()[key]
-            if use_name_hints and (key == 'id' or key.endswith('_id')):
-                continue
-            if use_name_hints and key.endswith('_uq'):
-                if conflict_mid:
-                    conflict_mid += f',{key}'
-                else:
-                    conflict_mid = key
-            if not val:
-                # skip empty strings
-                continue
-            query += f"{key}, "
-            if isinstance(val, str):
-                val = sanitize(val)
-                values += f"'{val}', "
-            elif issubclass(val.__class__, Enum) or isinstance(val, Enum):
-                values += f"{str(val.value)}, "
-            else:
-                values += f"{str(val)}, "
-        query = query[:-2] + ') ' + values[:-2] + ');'
-        if conflict_mid:
-            query = query[:-1] + f' {conflict_head}{conflict_mid}{conflict_tail}'
-        return query
-
-
-    @staticmethod
-    def get_querypair_insert_many_into_table(table_name: str, objs: List[pydantic.BaseModel], use_name_hints: bool) -> (str, dict):
+    def get_query_insert_many_into_table(table_name: str, objs: List[pydantic.BaseModel], use_name_hints: bool) -> tuple[str, dict]:
         """Generate SQL query to insert row into table. The new row will match the pydantic object.
 
         :param table_name: table name.
@@ -172,9 +121,6 @@ class DatabaseConnector:
                     columns.append(key)
                     placeholders.append(f"${len(columns)}")
                     row[key] = value
-#                    row.append(f"${len(columns)}")
-#            row = ', '.join(row)
-#            placeholders.append(row)
             rows.append(tuple(row.values()))
         # construct the query
         columns_str = ', '.join(columns)

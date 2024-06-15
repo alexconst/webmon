@@ -86,7 +86,7 @@ class WebMonitor:
         # always read website list from the DB (either due to user option, or just to have website_id info as per the DB)
         await self._read_sites_from_db()
         # increase system resource limits
-        self._config_system_resource_limits()
+        WebMonitor.config_system_resource_limits(len(self.site_list), logger)
 
 
     def _read_config(self) -> None:
@@ -116,8 +116,13 @@ class WebMonitor:
 
 
     @staticmethod
-    def get_valid_url(url: str, no_naked_domain: bool) -> str:
+    def get_valid_url(url: str, no_naked_domain: bool=False) -> str:
         """Receives a malformed url and returns a well formed one.
+
+        :param url: input url
+        :param no_naked_domain: if true then it will append `www.` to any input naked domain
+        :return: a well formed URL
+        :rtype: string
         """
         url_regex = '(?P<protocol>http.*://)?(?P<host>[^:/ ]+).?(?P<port>[0-9]*)/?(?P<path>.*)'
         m = re.search(url_regex, url)
@@ -155,16 +160,17 @@ class WebMonitor:
             sys.exit(1)
 
 
-    def _config_system_resource_limits(self) -> None:
+    @staticmethod
+    def config_system_resource_limits(hint, logger=None) -> None:
         import resource
-        hint = len(self.site_list)
-        factor = 5
+        factor = 2
         soft_limit, hard_limit = resource.getrlimit(resource.RLIMIT_NOFILE)
-        new_soft_limit = max(soft_limit + hint*5, resource.RLIM_INFINITY)
-        # increase max num FDs soft limit to more than twice the number of websites, and maintain the hard limit because only root can increase it
+        new_soft_limit = max(soft_limit + hint*factor, resource.RLIM_INFINITY)
+        # increase max number of FDs soft limit to based on the number of websites, and maintain the hard limit because only root can increase it
         resource.setrlimit(resource.RLIMIT_NOFILE, (new_soft_limit, hard_limit))
         new_soft_limit, new_hard_limit = resource.getrlimit(resource.RLIMIT_NOFILE)
-        logger.info(f"OS's soft limit on max number of file descriptors: old value was {soft_limit}, new value is {new_soft_limit}.")
+        if logger:
+            logger.info(f"OS's soft limit on max number of file descriptors: old value was {soft_limit}, new value is {new_soft_limit}.")
 
 
     async def _db_init(self) -> None:
@@ -173,14 +179,6 @@ class WebMonitor:
         Creates tables for saving results of health checks."""
         await self.dbc.execute_create_table(self.tablename_website, Website)
         await self.dbc.execute_create_table(self.tablename_healthcheck, Healthcheck)
-
-
-#    async def _db_insert_website_entry(self, website: Website) -> None:
-#        """Insert website healthcheck rule in the DB.
-#
-#        :param website: website to insert as new row
-#        """
-#        await self.dbc.execute_insert_many_into_table(self.tablename_website, [website])
 
 
     async def _db_insertmany_website_entry(self, websites: List[Website]) -> None:
@@ -194,26 +192,13 @@ class WebMonitor:
     async def _db_insert_healthcheck_entry(self, check: Healthcheck) -> None:
         """Insert result of a website health check in the DB.
         """
-#        await self.dbc.execute_insert_into_table(self.tablename_healthcheck, check)
         await self.dbc.execute_insert_many_into_table(self.tablename_healthcheck, [check])
 
 
     async def _monitor(self) -> None:
         """Creates and starts a coroutine for each website that needs to be monitored.
         """
-        logging.basicConfig(level=logging.DEBUG)
-        #ka_timeout = 330
-        #connector = TCPConnector(limit=0, keepalive_timeout=ka_timeout) # using TCPConnector with limit=0 it removes the limit on number of connections
-        #total_timeout = ClientTimeout(total=30) # fail fast; reduces default of 300 to 30
-        #connector = TCPConnector(limit=2) # limit=None for no limit; keepalive_timeout=330, , enable_cleanup_closed=True, force_close=True
-        #total_timeout = ClientTimeout(total=15) # this timeout will also include the time waiting for the semaphore to free up???
-        #ipdb.set_trace()
         sem = asyncio.Semaphore(100)
-#        async with ClientSession(connector=connector, timeout=total_timeout) as session:
-#            tasks = []
-#            for website in self.site_list:
-#                tasks.append(self._healthcheck_website(session, website, sem))
-#            await asyncio.gather(*tasks)
         tasks = []
         for website in self.site_list:
             tasks.append(self._healthcheck_website(website, sem))
@@ -221,89 +206,117 @@ class WebMonitor:
 
 
     async def _healthcheck_website(self, website: Website, sem: asyncio.Semaphore):
-        """Continuously performs health check on website.
+        """Continuously performs healthchecks on website. Makes http request and saves result in the DB.
 
-        Makes an HTTP request against website according to defined time interval.
-        Also does a regex check against the html reply.
-        Saves result in the DB.
+        :param website: website info
+        :param sem: semaphore to control number of simultaneous connections
         """
-        decimal_places = 3
-        num_checks = self.num_checks
-        #ipdb.set_trace()
-        headers = {
+        request_headers = {
             'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/115.0',
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
             'Accept-Language': 'en-US,en;q=0.5',
             'Referer': 'https://www.google.com/',
             'Connection': 'keep-alive'
         }
-        connector = TCPConnector(limit=None, enable_cleanup_closed=True, force_close=True) # limit=None for no limit; keepalive_timeout=330,
-        total_timeout = ClientTimeout(total=15) # this timeout will also include the time waiting for the semaphore to free up???
+        timeout_seconds = 15
+        num_checks = self.num_checks
+        regex_pattern = None
+        if website.regex:
+            regex_pattern = re.compile(website.regex)
+        connector = TCPConnector(limit=None, enable_cleanup_closed=True, force_close=True) # limit=None for no limit
+        total_timeout = ClientTimeout(total=timeout_seconds)
         async with ClientSession(connector=connector, timeout=total_timeout) as session:
             while num_checks != 0:
                 num_checks -= 1
-                resp = None
-                status_code = -1
-                error_message = ''
-
                 await asyncio.sleep(website.interval)
-                logger.debug(f'Will make a web request for: {website.url_uq}')
-                request_timestamp = time.time()
-                # make request
-                try:
-                    logger.debug(f'Waiting for semaphore unlock to make web request for: {website.url_uq}')
-                    async with sem:
-                        logger.debug(f'Semaphore unlocked for making web request for: {website.url_uq}')
-                        resp = await session.request(method="GET", headers=headers, url=website.url_uq)
-                        logger.debug(f'OKed making web request for: {website.url_uq}')
-                        resp.close() # https://github.com/aio-libs/aiohttp/issues/5277#issuecomment-944448361
-                    status_code = resp.status
-                except asyncio.TimeoutError as exp:
-                    logger.debug(f'FAILed making web request for: {website.url_uq}')
-                    status_code = 598 # (Informal convention) Network read timeout error
-                    error_message += f"[{str(exp.__class__)}] {str(exp)}"
-                except Exception as exp:
-                    status_code = 555 # observed expections include: ClientConnectorError, ClientOSError
-                    error_message += f"[{str(exp.__class__)}] {str(exp)}"
-                response_time = time.time() - request_timestamp
-                # check regex
-                website.regex = False                                       # NOTE: for DEBUG only, remove this line after finished sorting connection problesm
-                if resp and website.regex:
-                    match_status = RegexMatchStatus.FAIL
-                    try:
-                        async with sem:
-                            html = await resp.text()
-                        response_time = time.time() - request_timestamp
-                        status_code = resp.status
-                        pattern = re.compile(website.regex)
-                        if pattern.search(html):
-                            match_status = RegexMatchStatus.OK
-                    except asyncio.TimeoutError as exp:
-                        status_code = 598 # (Informal convention) Network read timeout error
-                        error_message += f"[{str(exp.__class__)}] {str(exp)}"
-                    except Exception as exp:
-                        status_code = 555 # if this happens it will need investigation
-                        error_message += f"[{str(exp.__class__)}] {str(exp)}"
-                else:
-                    match_status = RegexMatchStatus.NA
+                check = await self._request_website(session, website, sem, request_headers, regex_pattern)
 
-                msg = f'Got HTTP response code [{status_code}] for URL: {website.url_uq}'
-                if status_code >= 300:
+                msg = f'Got HTTP response code [{check.http_status_code}] for URL: {website.url_uq}'
+                if check.http_status_code >= 300:
                     logger.error(msg)
                 else:
                     logger.info(msg)
+                if check.error_message:
+                    check.error_message = f"{website.url_uq} {check.error_message}"
+                    check.error_message = check.error_message[:300] # trim error message to something reasonable
 
-                error_message = error_message[:250] # trim error message to something manageable
-                check = Healthcheck(
-                        check_id=-1,
-                        website_fk=website.website_id,
-                        request_timestamp=round(request_timestamp, decimal_places),
-                        response_time=round(response_time, decimal_places),
-                        http_status_code=status_code,
-                        regex_match_status=match_status,
-                        error_message=error_message)
                 await self._db_insert_healthcheck_entry(check)
                 logger.debug(f'Finished inserting in DB the check results for: {website.url_uq}')
-            #await session.close()
+
+
+    async def _request_website(self,
+            session: ClientSession,
+            website: Website,
+            sem: asyncio.Semaphore,
+            headers: dict,
+            regex_pattern: re.Pattern) -> "Healthcheck":
+        """Makes HTTP request.
+
+        Makes an HTTP request against website according to defined time interval.
+        Also does a regex check against the html reply.
+
+        :param session: http client session
+        :param website: website info
+        :param sem: semaphore to control number of simultaneous connections
+        :param headers: http request headers
+        :param regex_pattern: regex pattern to check html for
+        :return: healthcheck results
+        :rtype: Healthcheck
+        """
+        decimal_places = 3
+        resp = None
+        status_code = -1
+        error_message = ''
+        logger.debug(f'Will make a web request for: {website.url_uq}')
+        request_timestamp = time.time()
+
+        # make request
+        try:
+            logger.debug(f'Waiting for semaphore unlock to make web request for: {website.url_uq}')
+            async with sem:
+                logger.debug(f'Semaphore unlocked for making web request for: {website.url_uq}')
+                resp = await session.request(method="GET", headers=headers, url=website.url_uq)
+                logger.debug(f'OKed making web request for: {website.url_uq}')
+                if not website.regex:
+                    resp.close() # https://github.com/aio-libs/aiohttp/issues/5277#issuecomment-944448361
+            status_code = resp.status
+        except asyncio.TimeoutError as exp:
+            logger.debug(f'FAILed making web request for: {website.url_uq}')
+            status_code = 598 # (Informal convention) Network read timeout error
+            error_message += f"{str(exp.__class__)} {str(exp)}"
+        except Exception as exp:
+            status_code = 555 # observed expections include: ClientConnectorError, ClientOSError
+            error_message += f"{str(exp.__class__)} {str(exp)}"
+        response_time = time.time() - request_timestamp
+
+        # check regex
+        if resp and website.regex:
+            match_status = RegexMatchStatus.FAIL
+            try:
+                async with sem:
+                    html = await resp.text()
+                    resp.close() # https://github.com/aio-libs/aiohttp/issues/5277#issuecomment-944448361
+                response_time = time.time() - request_timestamp
+                status_code = resp.status
+                if regex_pattern.search(html):
+                    match_status = RegexMatchStatus.OK
+            except asyncio.TimeoutError as exp:
+                status_code = 598 # (Informal convention) Network read timeout error
+                error_message += f"{str(exp.__class__)} {str(exp)}"
+            except Exception as exp:
+                status_code = 555 # if this happens it will need investigation
+                error_message += f"{str(exp.__class__)} {str(exp)}"
+        else:
+            match_status = RegexMatchStatus.NA
+
+        check = Healthcheck(
+                check_id=-1,
+                website_fk=website.website_id,
+                request_timestamp=round(request_timestamp, decimal_places),
+                response_time=round(response_time, decimal_places),
+                http_status_code=status_code,
+                regex_match_status=match_status,
+                error_message=error_message)
+        return check
 
 

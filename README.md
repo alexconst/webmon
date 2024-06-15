@@ -143,8 +143,11 @@ awk 'BEGIN{FS=OFS=","} {gsub(/"/, "", $1); if ($1 ~ /^[^.]*\.[^.]*$/) {sub(/^/, 
 Configure pool sizes for web requests and DB requests.
 So far there was no need to do so, but OTOH the codebase does currently use `asyncio.Semaphore`.
 
+## consider queues
+Consider if using an async queue for the regex check work would be beneficial.
+
 ## replace venv with Docker
-also update makefile to reflect this
+Also update makefile to reflect this
 
 ## CI pipeline in Github
 

@@ -36,35 +36,12 @@ def test_get_query_drop_table():
     assert clean(res) == clean(exp)
 
 
-def test_get_query_insert_into_table():
-    website = Website(website_id=-1, url_uq='https://foo.bar', interval=5, regex='')
-
-    res = DatabaseConnector.get_query_insert_into_table('website', website, True)
-    exp = "INSERT INTO website (url_uq, interval) VALUES ('https://foo.bar', 5) ON CONFLICT (url_uq) DO NOTHING;"
-    assert clean(res) == clean(exp)
-
-    res = DatabaseConnector.get_query_insert_into_table('website', website, False)
-    exp = "INSERT INTO website (website_id, url_uq, interval) VALUES (-1, 'https://foo.bar', 5);"
-    assert clean(res) == clean(exp)
-
-
-    website_with_regex = Website(website_id=-1, url_uq='https://foo.bar', interval=5, regex='welcome')
-
-    res = DatabaseConnector.get_query_insert_into_table('website', website_with_regex, True)
-    exp = "INSERT INTO website (url_uq, interval, regex) VALUES ('https://foo.bar', 5, 'welcome') ON CONFLICT (url_uq) DO NOTHING;"
-    assert clean(res) == clean(exp)
-
-    res = DatabaseConnector.get_query_insert_into_table('website', website_with_regex, False)
-    exp = "INSERT INTO website (website_id, url_uq, interval, regex) VALUES (-1, 'https://foo.bar', 5, 'welcome');"
-    assert clean(res) == clean(exp)
-
-
 def test_get_querypair_insert_many_into_table():
     website1 = Website(website_id=-1, url_uq='https://foo.bar', interval=5, regex='')
     website2 = Website(website_id=-1, url_uq='https://matrix.bar', interval=10, regex='neo')
     websites = [website1, website2]
 
-    res_query, res_data = DatabaseConnector.get_querypair_insert_many_into_table('website', websites, True)
+    res_query, res_data = DatabaseConnector.get_query_insert_many_into_table('website', websites, True)
     exp_query = 'INSERT INTO website (url_uq, interval, regex) VALUES ($1, $2, $3) ON CONFLICT (url_uq) DO NOTHING;'
     exp_data = [('https://foo.bar', 5, ''), ('https://matrix.bar', 10, 'neo')]
     assert res_query == exp_query

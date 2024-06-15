@@ -22,7 +22,7 @@ def main(argv):
     description = "Monitor list of sites and save metrics in database."
     use_examples = "Examples:"
     use_examples += "\n{} --db-config secrets/db_postgresql.json --sites-csv data/websites_top15.csv --number-healthchecks 5".format(argv[0])
-    use_examples += "\n{} --db-config secrets/db_postgresql.json --sites-table --number-healthchecks 5".format(argv[0])
+    use_examples += "\n{} --db-config secrets/db_postgresql.json --sites-table --number-healthchecks -1".format(argv[0])
     use_examples += "\n{} --db-config secrets/db_postgresql.json --drop-tables".format(argv[0])
 
     parser = argparse.ArgumentParser(description=description, epilog=use_examples, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -44,7 +44,7 @@ def main(argv):
         metavar=('FILENAME_CSV'),
         type=str,
         nargs=1,
-        help='CSV file with list of websites to check. Each row includes: URL, time interval in seconds, optional regex.')
+        help='CSV file with list of websites to monitor. These will be appended to the existing ones in the DB. Each row includes: URL, time interval in seconds, optional regex.')
     parser.add_argument(
         '--number-healthchecks',
         metavar=('NUMBER_CHECKS'),

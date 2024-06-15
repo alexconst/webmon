@@ -86,7 +86,7 @@ tests-integration:
 debug:
 	@( \
 		[ -n "$$VIRTUAL_ENV" ] || . venv/bin/activate ;\
-		pytest -s -v --log-level=DEBUG --pdb tests ;\
+		pytest -s -v --log-level=DEBUG --pdb tests tests_integration ;\
 	)
 
 # catch unmatched rules (which are triggered when passing extra options to run) to do nothing

@@ -63,6 +63,14 @@ class DatabaseConnectorPostgresql(DatabaseConnector):
             await conn.execute(query)
 
 
+    @retry(tries=5, delay=30, backoff=2, max_interval=120, logger=logger)
+    async def db_executemany(self, query, data) -> None:
+        """Runs query.
+        """
+        async with self.conn_pool.acquire() as conn:
+            await conn.executemany(query, data)
+
+
     async def fetch_version(self) -> str:
         """Returns DB version.
 
@@ -116,8 +124,18 @@ class DatabaseConnectorPostgresql(DatabaseConnector):
         """Inserts the corresponding row representation of obj into a table.
 
         :param table_name: table name.
-        :param obj: value to introduce in the table.
+        :param obj: value to insert in the table.
         """
         query = DatabaseConnector.get_query_insert_into_table(table_name, obj, True)
         await self.db_execute(query)
+
+
+    async def execute_insert_many_into_table(self, table_name: str, objs: List[pydantic.BaseModel]) -> None:
+        """Inserts the corresponding row representation of obj into a table.
+
+        :param table_name: table name.
+        :param obj: list of object values to insert in the table.
+        """
+        query, data = DatabaseConnector.get_querypair_insert_many_into_table(table_name, objs, True)
+        await self.db_executemany(query, data)
 

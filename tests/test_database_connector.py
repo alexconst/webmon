@@ -59,3 +59,14 @@ def test_get_query_insert_into_table():
     assert clean(res) == clean(exp)
 
 
+def test_get_querypair_insert_many_into_table():
+    website1 = Website(website_id=-1, url_uq='https://foo.bar', interval=5, regex='')
+    website2 = Website(website_id=-1, url_uq='https://matrix.bar', interval=10, regex='neo')
+    websites = [website1, website2]
+
+    res_query, res_data = DatabaseConnector.get_querypair_insert_many_into_table('website', websites, True)
+    exp_query = 'INSERT INTO website (url_uq, interval, regex) VALUES ($1, $2, $3) ON CONFLICT (url_uq) DO NOTHING;'
+    exp_data = [('https://foo.bar', 5, ''), ('https://matrix.bar', 10, 'neo')]
+    assert res_query == exp_query
+    assert res_data == exp_data
+

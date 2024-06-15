@@ -78,8 +78,7 @@ class WebMonitor:
             if self.site_list.endswith('.csv') and os.path.exists(self.site_list):
                 self._read_sites_from_file()
                 await self.dbc.execute_create_table(self.tablename_website, Website)
-                for website in self.site_list:
-                    await self._db_insert_website_entry(website)
+                await self._db_insertmany_website_entry(self.site_list)
             else:
                 logger.fatal(f"Invalid file provided. Either file doesn't exist or it doesn't have a .csv extension: {self.site_list}")
                 await self._finish()
@@ -111,13 +110,13 @@ class WebMonitor:
                 if idx == 0 and f'host{delimiter}interval' in str(row):
                     continue
                 url, interval, regex = split_row(row)
-                url = WebMonitor.get_valid_url(url)
+                url = WebMonitor.get_valid_url(url, False) # better disable any "magic" for non-naked domain
                 sites.append(Website(website_id=-1, url_uq=url, interval=interval, regex=regex))
         self.site_list = sites
 
 
     @staticmethod
-    def get_valid_url(url: str):
+    def get_valid_url(url: str, no_naked_domain: bool) -> str:
         """Receives a malformed url and returns a well formed one.
         """
         url_regex = '(?P<protocol>http.*://)?(?P<host>[^:/ ]+).?(?P<port>[0-9]*)/?(?P<path>.*)'
@@ -126,6 +125,8 @@ class WebMonitor:
         host = m.group('host')
         port = m.group('port')
         path = m.group('path')
+        if no_naked_domain and host.count('.') < 2:
+            host = f'www.{host}'
         if not port and not protocol:
             protocol = 'https'
             port = 443
@@ -157,10 +158,12 @@ class WebMonitor:
     def _config_system_resource_limits(self) -> None:
         import resource
         hint = len(self.site_list)
+        factor = 5
         soft_limit, hard_limit = resource.getrlimit(resource.RLIMIT_NOFILE)
-        new_soft_limit = max(soft_limit + hint*3, resource.RLIM_INFINITY)
+        new_soft_limit = max(soft_limit + hint*5, resource.RLIM_INFINITY)
         # increase max num FDs soft limit to more than twice the number of websites, and maintain the hard limit because only root can increase it
         resource.setrlimit(resource.RLIMIT_NOFILE, (new_soft_limit, hard_limit))
+        new_soft_limit, new_hard_limit = resource.getrlimit(resource.RLIMIT_NOFILE)
         logger.info(f"OS's soft limit on max number of file descriptors: old value was {soft_limit}, new value is {new_soft_limit}.")
 
 
@@ -172,18 +175,27 @@ class WebMonitor:
         await self.dbc.execute_create_table(self.tablename_healthcheck, Healthcheck)
 
 
-    async def _db_insert_website_entry(self, website: Website) -> None:
-        """Insert website healthcheck rule in the DB.
+#    async def _db_insert_website_entry(self, website: Website) -> None:
+#        """Insert website healthcheck rule in the DB.
+#
+#        :param website: website to insert as new row
+#        """
+#        await self.dbc.execute_insert_many_into_table(self.tablename_website, [website])
 
-        :param website: website to insert as new row
+
+    async def _db_insertmany_website_entry(self, websites: List[Website]) -> None:
+        """Insert multiple website healthcheck rules in the DB.
+
+        :param websites: list of websites to insert in the table
         """
-        await self.dbc.execute_insert_into_table(self.tablename_website, website)
+        await self.dbc.execute_insert_many_into_table(self.tablename_website, websites)
 
 
     async def _db_insert_healthcheck_entry(self, check: Healthcheck) -> None:
         """Insert result of a website health check in the DB.
         """
-        await self.dbc.execute_insert_into_table(self.tablename_healthcheck, check)
+#        await self.dbc.execute_insert_into_table(self.tablename_healthcheck, check)
+        await self.dbc.execute_insert_many_into_table(self.tablename_healthcheck, [check])
 
 
     async def _monitor(self) -> None:
@@ -193,16 +205,22 @@ class WebMonitor:
         #ka_timeout = 330
         #connector = TCPConnector(limit=0, keepalive_timeout=ka_timeout) # using TCPConnector with limit=0 it removes the limit on number of connections
         #total_timeout = ClientTimeout(total=30) # fail fast; reduces default of 300 to 30
-        connector = TCPConnector(limit=None, keepalive_timeout=330)
-        total_timeout = ClientTimeout(total=15)
-        async with ClientSession(connector=connector, timeout=total_timeout) as session:
-            tasks = []
-            for website in self.site_list:
-                tasks.append(self._healthcheck_website(session, website))
-            await asyncio.gather(*tasks)
+        #connector = TCPConnector(limit=2) # limit=None for no limit; keepalive_timeout=330, , enable_cleanup_closed=True, force_close=True
+        #total_timeout = ClientTimeout(total=15) # this timeout will also include the time waiting for the semaphore to free up???
+        #ipdb.set_trace()
+        sem = asyncio.Semaphore(100)
+#        async with ClientSession(connector=connector, timeout=total_timeout) as session:
+#            tasks = []
+#            for website in self.site_list:
+#                tasks.append(self._healthcheck_website(session, website, sem))
+#            await asyncio.gather(*tasks)
+        tasks = []
+        for website in self.site_list:
+            tasks.append(self._healthcheck_website(website, sem))
+        await asyncio.gather(*tasks)
 
 
-    async def _healthcheck_website(self, session: ClientSession, website: Website):
+    async def _healthcheck_website(self, website: Website, sem: asyncio.Semaphore):
         """Continuously performs health check on website.
 
         Makes an HTTP request against website according to defined time interval.
@@ -211,64 +229,81 @@ class WebMonitor:
         """
         decimal_places = 3
         num_checks = self.num_checks
-        while num_checks != 0:
-            num_checks -= 1
-            resp = None
-            status_code = -1
-            error_message = ''
+        #ipdb.set_trace()
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/115.0',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Referer': 'https://www.google.com/',
+            'Connection': 'keep-alive'
+        }
+        connector = TCPConnector(limit=None, enable_cleanup_closed=True, force_close=True) # limit=None for no limit; keepalive_timeout=330,
+        total_timeout = ClientTimeout(total=15) # this timeout will also include the time waiting for the semaphore to free up???
+        async with ClientSession(connector=connector, timeout=total_timeout) as session:
+            while num_checks != 0:
+                num_checks -= 1
+                resp = None
+                status_code = -1
+                error_message = ''
 
-            await asyncio.sleep(website.interval)
-            logger.debug('Will make a request for: {website.url_uq}')
-            request_timestamp = time.time()
-            # make request
-            try:
-                resp = await session.request(method="GET", url=website.url_uq)
-                status_code = resp.status
-            except asyncio.TimeoutError as exp:
-                status_code = 598 # (Informal convention) Network read timeout error
-                error_message += f"[{str(exp.__class__)}] {str(exp)}"
-            except Exception as exp:
-                status_code = 555 # observed expections include: ClientConnectorError, ClientOSError
-                error_message += f"[{str(exp.__class__)}] {str(exp)}"
-            response_time = time.time() - request_timestamp
-            # check regex
-            if website.regex and resp:
+                await asyncio.sleep(website.interval)
+                logger.debug(f'Will make a web request for: {website.url_uq}')
+                request_timestamp = time.time()
+                # make request
                 try:
-                    html = await resp.text()
+                    logger.debug(f'Waiting for semaphore unlock to make web request for: {website.url_uq}')
+                    async with sem:
+                        logger.debug(f'Semaphore unlocked for making web request for: {website.url_uq}')
+                        resp = await session.request(method="GET", headers=headers, url=website.url_uq)
+                        logger.debug(f'OKed making web request for: {website.url_uq}')
+                        resp.close() # https://github.com/aio-libs/aiohttp/issues/5277#issuecomment-944448361
                     status_code = resp.status
                 except asyncio.TimeoutError as exp:
+                    logger.debug(f'FAILed making web request for: {website.url_uq}')
                     status_code = 598 # (Informal convention) Network read timeout error
                     error_message += f"[{str(exp.__class__)}] {str(exp)}"
                 except Exception as exp:
-                    status_code = 555 # if this happens it will need investigation
+                    status_code = 555 # observed expections include: ClientConnectorError, ClientOSError
                     error_message += f"[{str(exp.__class__)}] {str(exp)}"
-                try:
-                    pattern = re.compile(website.regex)
-                    if pattern.search(html):
-                        match_status = RegexMatchStatus.OK
-                    else:
-                        match_status = RegexMatchStatus.FAIL
-                except Exception as exp:
-                    error_message += f"[{str(exp.__class__)}] {str(exp)}"
-            else:
-                match_status = RegexMatchStatus.NA
                 response_time = time.time() - request_timestamp
+                # check regex
+                website.regex = False                                       # NOTE: for DEBUG only, remove this line after finished sorting connection problesm
+                if resp and website.regex:
+                    match_status = RegexMatchStatus.FAIL
+                    try:
+                        async with sem:
+                            html = await resp.text()
+                        response_time = time.time() - request_timestamp
+                        status_code = resp.status
+                        pattern = re.compile(website.regex)
+                        if pattern.search(html):
+                            match_status = RegexMatchStatus.OK
+                    except asyncio.TimeoutError as exp:
+                        status_code = 598 # (Informal convention) Network read timeout error
+                        error_message += f"[{str(exp.__class__)}] {str(exp)}"
+                    except Exception as exp:
+                        status_code = 555 # if this happens it will need investigation
+                        error_message += f"[{str(exp.__class__)}] {str(exp)}"
+                else:
+                    match_status = RegexMatchStatus.NA
 
-            msg = f'Got HTTP response code [{status_code}] for URL: {website.url_uq}'
-            if status_code >= 300:
-                logger.error(msg)
-            else:
-                logger.info(msg)
+                msg = f'Got HTTP response code [{status_code}] for URL: {website.url_uq}'
+                if status_code >= 300:
+                    logger.error(msg)
+                else:
+                    logger.info(msg)
 
-            error_message = error_message[:250] # trim error message to something manageable
-            check = Healthcheck(
-                    check_id=-1,
-                    website_fk=website.website_id,
-                    request_timestamp=round(request_timestamp, decimal_places),
-                    response_time=round(response_time, decimal_places),
-                    http_status_code=status_code,
-                    regex_match_status=match_status,
-                    error_message=error_message)
-            await self._db_insert_healthcheck_entry(check)
-            logger.debug('Finished inserting in DB the check results for: {website.url_uq}')
+                error_message = error_message[:250] # trim error message to something manageable
+                check = Healthcheck(
+                        check_id=-1,
+                        website_fk=website.website_id,
+                        request_timestamp=round(request_timestamp, decimal_places),
+                        response_time=round(response_time, decimal_places),
+                        http_status_code=status_code,
+                        regex_match_status=match_status,
+                        error_message=error_message)
+                await self._db_insert_healthcheck_entry(check)
+                logger.debug(f'Finished inserting in DB the check results for: {website.url_uq}')
+            #await session.close()
+
 

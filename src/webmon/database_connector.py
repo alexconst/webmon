@@ -2,6 +2,7 @@ from typing import List
 from abc import ABC, abstractmethod
 import pydantic
 from enum import Enum
+from collections import OrderedDict
 
 
 class DatabaseConnector:
@@ -131,6 +132,56 @@ class DatabaseConnector:
         if conflict_mid:
             query = query[:-1] + f' {conflict_head}{conflict_mid}{conflict_tail}'
         return query
+
+
+    @staticmethod
+    def get_querypair_insert_many_into_table(table_name: str, objs: List[pydantic.BaseModel], use_name_hints: bool) -> (str, dict):
+        """Generate SQL query to insert row into table. The new row will match the pydantic object.
+
+        :param table_name: table name.
+        :param objs: list of objects to be converted and inserted as a row.
+        :param use_name_hints: if True it will handle some fields in a special form
+            If the name is either `id` or ending with substring `_id` then it will ignore it (ie primary key).
+            If the name ends in substring `_uq` then the query will set to ignore conflicts.
+        :return: a tuple with the SQL query and the data.
+        :rtype: tuple(string, dict)
+        """
+
+        query_template = 'INSERT INTO {table_name} ({columns}) VALUES ({placeholders}) {conflict_expression};'
+        rows = []
+        for obj in objs:
+            columns = []
+            columns_conflict = []
+            placeholders = []
+            row = OrderedDict()
+            data = obj.model_dump(exclude_unset=True)
+            # convert any enum fields to integers
+            for key, value in data.items():
+                if isinstance(value, Enum):
+                    data[key] = int(value.value)
+            # process all fields
+            for key, value in data.items():
+                if use_name_hints and (key == "id" or key.endswith("_id")):
+                    continue
+                elif use_name_hints and key.endswith("_uq"):
+                    columns.append(key)
+                    columns_conflict.append(key)
+                    placeholders.append(f"${len(columns)}")
+                    row[key] = value
+                else:
+                    columns.append(key)
+                    placeholders.append(f"${len(columns)}")
+                    row[key] = value
+#                    row.append(f"${len(columns)}")
+#            row = ', '.join(row)
+#            placeholders.append(row)
+            rows.append(tuple(row.values()))
+        # construct the query
+        columns_str = ', '.join(columns)
+        placeholders_str = ', '.join(placeholders)
+        conflict_expression = f"ON CONFLICT ({', '.join(columns_conflict)}) DO NOTHING" if columns_conflict else ""
+        query = query_template.format(table_name=table_name, columns=columns_str, placeholders=placeholders_str, conflict_expression=conflict_expression)
+        return query, rows
 
 
     @staticmethod

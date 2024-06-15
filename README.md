@@ -77,6 +77,14 @@ SELECT COUNT(*) FROM healthcheck;
 
 SELECT COUNT(*) FROM healthcheck WHERE http_status_code = 598;
 SELECT COUNT(*) FROM healthcheck WHERE http_status_code = 555;
+
+SELECT h.* FROM healthcheck h JOIN website w ON h.website_fk = w.website_id WHERE h.http_status_code = 555 AND w.url_uq = 'https://sciencedirect.com:443';
+SELECT h.* FROM healthcheck h JOIN website w ON h.website_fk = w.website_id WHERE w.url_uq = 'https://sciencedirect.com:443';
+
+SELECT w.url_uq, h.error_message FROM website w JOIN healthcheck h ON h.website_fk = w.website_id WHERE h.http_status_code != 200;
+
+-- won't run, or at least on low end DB server
+SELECT w.url_uq, (SELECT COUNT(*) FROM healthcheck WHERE website_fk = w.website_id AND http_status_code = 200) AS count_http_200, (SELECT COUNT(*) FROM healthcheck WHERE website_fk = w.website_id AND http_status_code != 200) AS count_not_http_200   FROM website w JOIN healthcheck h ON h.website_fk = w.website_id WHERE h.http_status_code != 200;
 ```
 
 ## generate list of top websites
@@ -93,8 +101,15 @@ cat websites.csv | head -n 100 | cut -f2 -d',' | while read line; do echo "$line
 
 # top 100 websites with random text pattern to search for
 websites="websites_100" ; words='/usr/share/dict/american-english' ; cat "$websites.csv" | while read line; do if (( $RANDOM % 5 == 0 )); then word1=$(shuf -n 1 $words);  word2=$(shuf -n 1 $words); echo "$line,\"$word1 $word2\""; else echo "$line"; fi; done > "${websites}_regex.csv"
+
+# add www subdomain
+awk 'BEGIN{FS=OFS=","} {gsub(/"/, "", $1); if ($1 ~ /^[^.]*\.[^.]*$/) {sub(/^/, "www.");} print}' websites_top101.csv > websites_top101_www.csv 
 ```
 
+
+
+# Bugs & Caveats
+- Redirect don't work. When making a `ClientSession.request` despite `allow_redirects` defaulting to True, if you try to access an incorrect domain, eg a naked domain, if it fails then it won't automatically try the `www.` subdomain. Browsers do a bit of magic in this regard. Another example is with `ec.europa.eu` which on the browser redirects to `commission.europa.eu` and in curl it gets a redirect status code, but in this tool it fails.
 
 
 # References

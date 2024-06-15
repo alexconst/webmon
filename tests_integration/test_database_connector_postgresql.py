@@ -7,7 +7,6 @@ from types import SimpleNamespace
 import asyncio
 import pytest
 import json
-import ipdb
 
 
 # uncomment if debugging:
@@ -28,7 +27,7 @@ class TestDatabaseConnectorPostgresql:
             test_db_config = json.load(file)
         cfg = SimpleNamespace(**{k: v for k, v in test_db_config.items()})
         TestDatabaseConnectorPostgresql.db = DatabaseConnectorPostgresql(cfg.db_user, cfg.db_pass, cfg.db_name, cfg.db_host, cfg.db_port, cfg.db_ssl)
-        await TestDatabaseConnectorPostgresql.db.initialize()
+        await TestDatabaseConnectorPostgresql.db.open()
 
 
     async def test_fetch_version(self):

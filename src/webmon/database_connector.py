@@ -2,7 +2,6 @@ from typing import List
 from abc import ABC, abstractmethod
 import pydantic
 from enum import Enum
-from collections import OrderedDict
 
 
 class DatabaseConnector:
@@ -30,127 +29,28 @@ class DatabaseConnector:
 
 
     @abstractmethod
-    async def db_fetch(self, query: str) -> List[dict]:
+    async def open(self):
         raise NotImplementedError
-
 
     @abstractmethod
-    async def db_execute(self, query: str) -> None:
+    async def close(self):
         raise NotImplementedError
 
+    @abstractmethod
+    async def execute_create_table(self, table_name: str, obj: pydantic.BaseModel) -> None:
+        raise NotImplementedError
 
-    @staticmethod
-    def get_query_create_table(table_name: str, obj: pydantic.BaseModel, use_name_hints: bool) -> str:
-        """Generate SQL query to create table. The rows and their type are matched to the pydantic object.
+    @abstractmethod
+    async def execute_drop_table(self, table_name: str) -> None:
+        raise NotImplementedError
 
-        :param table_name: table name.
-        :param obj: a column will be created for each attribute in this object.
-        :param use_name_hints: if True it will use the field name to set column properties:
-            If the field name matches string `id` or ends in substring `_id` then it sets the column as primary key.
-            If the field name ends in substring `_uq` then it sets the column as unique.
-        :return: SQL query.
-        :rtype: string
-        """
-        mappings = {'int': 'INT', 'integer': 'INT', 'number': 'FLOAT', 'float': 'FLOAT', 'enum': 'INT', 'str': 'TEXT', 'string': 'TEXT', 'datetime': 'DATETIME'}
-        query = f"CREATE TABLE IF NOT EXISTS {table_name} (\n"
-        schema_dict = obj.model_json_schema()
-        primary_key = ''
-        for key, value in schema_dict["properties"].items():
-            if issubclass(obj.__annotations__[key], Enum) or isinstance(obj.__annotations__[key], Enum):
-                value = mappings['int']
-            else:
-                value = mappings[value['type']]
-            if use_name_hints and (key == 'id' or key.endswith('_id')):
-                query += f"{key} SERIAL,\n"
-                primary_key = f",\nPRIMARY KEY ({key})\n"
-            elif use_name_hints and (key.endswith('_uq')):
-                query += f"{key} {value} UNIQUE,\n"
-            else:
-                query += f"{key} {value},\n"
-        query = query[:-2] + primary_key + ");"
-        return query
+    @abstractmethod
+    async def execute_insert_many_into_table(self, table_name: str, objs: List[pydantic.BaseModel]) -> None:
+        raise NotImplementedError
 
-
-    @staticmethod
-    def get_query_drop_table(table_name: str) -> str:
-        """Drop table.
-
-        :param table_name: table name.
-        :return: SQL query.
-        :rtype: string
-        """
-        query = f"DROP TABLE IF EXISTS {table_name};"
-        return query
-
-
-    @staticmethod
-    def get_query_insert_many_into_table(table_name: str, objs: List[pydantic.BaseModel], use_name_hints: bool) -> tuple[str, dict]:
-        """Generate SQL query to insert row into table. The new row will match the pydantic object.
-
-        :param table_name: table name.
-        :param objs: list of objects to be converted and inserted as a row.
-        :param use_name_hints: if True it will handle some fields in a special form
-            If the name is either `id` or ending with substring `_id` then it will ignore it (ie primary key).
-            If the name ends in substring `_uq` then the query will set to ignore conflicts.
-        :return: a tuple with the SQL query and the data.
-        :rtype: tuple(string, dict)
-        """
-
-        query_template = 'INSERT INTO {table_name} ({columns}) VALUES ({placeholders}) {conflict_expression};'
-        rows = []
-        for obj in objs:
-            columns = []
-            columns_conflict = []
-            placeholders = []
-            row = OrderedDict()
-            data = obj.model_dump(exclude_unset=True)
-            # convert any enum fields to integers
-            for key, value in data.items():
-                if isinstance(value, Enum):
-                    data[key] = int(value.value)
-            # process all fields
-            for key, value in data.items():
-                if use_name_hints and (key == "id" or key.endswith("_id")):
-                    continue
-                elif use_name_hints and key.endswith("_uq"):
-                    columns.append(key)
-                    columns_conflict.append(key)
-                    placeholders.append(f"${len(columns)}")
-                    row[key] = value
-                else:
-                    columns.append(key)
-                    placeholders.append(f"${len(columns)}")
-                    row[key] = value
-            rows.append(tuple(row.values()))
-        # construct the query
-        columns_str = ', '.join(columns)
-        placeholders_str = ', '.join(placeholders)
-        conflict_expression = f"ON CONFLICT ({', '.join(columns_conflict)}) DO NOTHING" if columns_conflict else ""
-        query = query_template.format(table_name=table_name, columns=columns_str, placeholders=placeholders_str, conflict_expression=conflict_expression)
-        return query, rows
-
-
-    @staticmethod
-    def get_query_db_version() -> str:
-        """Generate SQL query to get the DB version.
-
-        :return: SQL query.
-        :rtype: string
-        """
-        query = 'SELECT VERSION()'
-        return query
-
-
-    @staticmethod
-    def get_query_select_all(table_name: str) -> str:
-        """Generate SQL query to get all rows from table.
-
-        :param table_name: table name
-        :return: SQL query.
-        :rtype: string
-        """
-        query = f'SELECT * FROM {table_name}'
-        return query
+    @abstractmethod
+    async def fetch_all_from_table(self, table_name: str, cls: pydantic.BaseModel) -> List[pydantic.BaseModel]:
+        raise NotImplementedError
 
 
     @staticmethod

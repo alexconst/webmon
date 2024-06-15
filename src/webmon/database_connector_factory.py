@@ -18,7 +18,5 @@ class DatabaseConnectorFactory():
             dbc = DatabaseConnectorPostgresql(cfg.db_user, cfg.db_pass, cfg.db_name, cfg.db_host, cfg.db_port, cfg.db_ssl)
         else:
             raise NotImplementedError
-        await dbc.initialize()
         return dbc
-
 

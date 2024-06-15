@@ -10,7 +10,6 @@ import time
 from .database_connector_factory import DatabaseConnectorFactory, DatabaseType
 from .website import Website
 from .healthcheck import Healthcheck, RegexMatchStatus
-import ipdb
 import sys
 import os
 
@@ -42,8 +41,14 @@ class WebMonitor:
             If 'monitor' then it performs required initialization and then monitors websites health.
             If 'drop-tables' it drops the tables used for websites and healthchecks.
         """
+        if action in ['monitor', 'drop-tables']:
+            with open(self.db_config, 'r') as file:
+                self.db_config = json.load(file)
+            db_type = DatabaseType[self.db_config['db_type'].upper()]
+            self.dbc = await DatabaseConnectorFactory(db_type, self.db_config).get_connector()
+            await self.dbc.open()
         if action == 'monitor':
-            await self._initialize()
+            await self._prepare()
             await self._monitor()
         elif action == 'drop-tables':
             await self._drop_tables()
@@ -53,32 +58,26 @@ class WebMonitor:
 
 
     async def _finish(self):
-        await self.dbc.close()
+        if self.dbc:
+            await self.dbc.close()
 
 
     async def _drop_tables(self):
-        self._read_config()
-        db_type = DatabaseType[self.db_config['db_type'].upper()]
-        self.dbc = await DatabaseConnectorFactory(db_type, self.db_config).get_connector()
         await self.dbc.execute_drop_table(self.tablename_healthcheck)
         await self.dbc.execute_drop_table(self.tablename_website)
 
 
-    async def _initialize(self) -> None:
-        """Read DB config. Read list of websites to check. Start connection to DB.
+    async def _prepare(self) -> None:
+        """Create DB tables. Process list of websites to healthcheck. Configure system resources limit.
         """
-        # read DB config
-        self._read_config()
-        # init DB
-        db_type = DatabaseType[self.db_config['db_type'].upper()]
-        self.dbc = await DatabaseConnectorFactory(db_type, self.db_config).get_connector()
-        await self._db_init()
+        await self.dbc.execute_create_table(self.tablename_website, Website)
+        await self.dbc.execute_create_table(self.tablename_healthcheck, Healthcheck)
         # if a website list was provided then read it and setup the DB
         if self.site_list:
             if self.site_list.endswith('.csv') and os.path.exists(self.site_list):
                 self._read_sites_from_file()
                 await self.dbc.execute_create_table(self.tablename_website, Website)
-                await self._db_insertmany_website_entry(self.site_list)
+                await self._db_insert_many_website_entry(self.site_list)
             else:
                 logger.fatal(f"Invalid file provided. Either file doesn't exist or it doesn't have a .csv extension: {self.site_list}")
                 await self._finish()
@@ -87,13 +86,6 @@ class WebMonitor:
         await self._read_sites_from_db()
         # increase system resource limits
         WebMonitor.config_system_resource_limits(len(self.site_list), logger)
-
-
-    def _read_config(self) -> None:
-        """Read DB config.
-        """
-        with open(self.db_config, 'r') as file:
-            self.db_config = json.load(file)
 
 
     def _read_sites_from_file(self) -> None:
@@ -173,15 +165,7 @@ class WebMonitor:
             logger.info(f"OS's soft limit on max number of file descriptors: old value was {soft_limit}, new value is {new_soft_limit}.")
 
 
-    async def _db_init(self) -> None:
-        """Makes required DB initializations.
-
-        Creates tables for saving results of health checks."""
-        await self.dbc.execute_create_table(self.tablename_website, Website)
-        await self.dbc.execute_create_table(self.tablename_healthcheck, Healthcheck)
-
-
-    async def _db_insertmany_website_entry(self, websites: List[Website]) -> None:
+    async def _db_insert_many_website_entry(self, websites: List[Website]) -> None:
         """Insert multiple website healthcheck rules in the DB.
 
         :param websites: list of websites to insert in the table

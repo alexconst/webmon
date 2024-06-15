@@ -2,7 +2,6 @@ import os
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '../src/'))
 from webmon.web_monitor import WebMonitor
-import ipdb
 
 def test_get_valid_url():
     assert WebMonitor.get_valid_url('foo.com') == 'https://foo.com:443'

@@ -3,7 +3,6 @@
 import sys
 import argparse
 import json
-import ipdb
 import logging
 import asyncio
 from webmon.web_monitor import WebMonitor

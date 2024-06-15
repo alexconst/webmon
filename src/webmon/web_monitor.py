@@ -269,6 +269,7 @@ class WebMonitor:
         error_message = ''
         logger.debug(f'Will make a web request for: {website.url_uq}')
         request_timestamp = time.time()
+        html = ''
 
         # make request
         try:
@@ -277,8 +278,9 @@ class WebMonitor:
                 logger.debug(f'Semaphore unlocked for making web request for: {website.url_uq}')
                 resp = await session.request(method="GET", headers=headers, url=website.url_uq)
                 logger.debug(f'OKed making web request for: {website.url_uq}')
-                if not website.regex:
-                    resp.close() # https://github.com/aio-libs/aiohttp/issues/5277#issuecomment-944448361
+                if website.regex:
+                    html = await resp.text()
+                resp.close() # https://github.com/aio-libs/aiohttp/issues/5277#issuecomment-944448361
             status_code = resp.status
         except asyncio.TimeoutError as exp:
             logger.debug(f'FAILed making web request for: {website.url_uq}')
@@ -291,21 +293,10 @@ class WebMonitor:
 
         # check regex
         if resp and website.regex:
-            match_status = RegexMatchStatus.FAIL
-            try:
-                async with sem:
-                    html = await resp.text()
-                    resp.close() # https://github.com/aio-libs/aiohttp/issues/5277#issuecomment-944448361
-                response_time = time.time() - request_timestamp
-                status_code = resp.status
-                if regex_pattern.search(html):
-                    match_status = RegexMatchStatus.OK
-            except asyncio.TimeoutError as exp:
-                status_code = 598 # (Informal convention) Network read timeout error
-                error_message += f"{str(exp.__class__)} {str(exp)}"
-            except Exception as exp:
-                status_code = 555 # if this happens it will need investigation
-                error_message += f"{str(exp.__class__)} {str(exp)}"
+            if html and regex_pattern.search(html):
+                match_status = RegexMatchStatus.OK
+            else:
+                match_status = RegexMatchStatus.FAIL
         else:
             match_status = RegexMatchStatus.NA
 

@@ -2,7 +2,7 @@
 CLI app to periodically perform health checks on multiple websites.
 Each health check can be defined with: url, time interval, optional regex to check the response html
 The list of websites can be provided as a file or in a DB via a config file.
-The app stores status results in the DB.
+The app stores healthcheck status results in the DB.
 
 
 # How To
@@ -13,8 +13,16 @@ sudo apt-get install libpq-dev postgresql-common
 
 make venv
 make deps
+```
 
+## Run it
+```bash
+make help
 make run -- -h
+
+source venv/bin/activate
+./src/webmoncli.py --db-config secrets/db_postgresql.json --drop-tables
+./src/webmoncli.py --db-config secrets/db_postgresql.json --sites-csv data/websites_top101_www.csv --number-healthchecks -1
 ```
 
 
@@ -35,34 +43,36 @@ make run -- -h
 ```
 
 ## websites CSV
-Uses `,` as the delimiter between fields.
-Currently there is no escaping of this character, so if the regex includes it then it will break parsing.
+Uses `,` as the delimiter between fields and optional `"` quotes to surrond strings.
+The optional regex can't break the CSV format otherwise it will not be parsed properly.
+
 Example:
 ```
-facebook.com,10
-twitter.com,14
-google.com,8,feeling lucky
+www.facebook.com,10
+www.twitter.com,14,foo
+www.google.com,8,"feeling lucky"
 ```
 
 
 
-# Design
+# Design Considerations
 
-## Considerations
+## Decisions
 - It creates two tables in the DB: `website` and `healthcheck`.
-- By using `aiohttp` we can make HTTP requests in an asynchronous manner. It is also more efficient since it allows reusing connections instead of opening and closing a new one at each request. The size of the connection pool is also configurable. https://docs.aiohttp.org/en/stable/http_request_lifecycle.html
-- By using `asyncpg` for PostgreSQL we can do use asyncio for database operations. According to the authors `asyncpg` is on average, 5x faster than psycopg3. https://github.com/MagicStack/asyncpg The connection pool is configurable.
+- By using `aiohttp` we can make HTTP requests in an asynchronous manner. It is also more efficient since it allows reusing connections instead of opening and closing a new one at each request. One `ClientSession` is used for each website target. Attempting to reuse the connection pool between websites led to a cascading failure.
+- By using `asyncpg` for PostgreSQL we can use asyncio for database operations. According to the authors `asyncpg` is on average, 5x faster than psycopg3. https://github.com/MagicStack/asyncpg The connection pool is also configurable, although there was no need to do so.
 
 
 ## Assumptions
+The initial assumptions were as follow:
 - The DB isn't a bottleneck since it can handle dozens of thousands of inserts per second. https://dba.stackexchange.com/questions/48220/what-database-and-setup-can-handle-several-million-inserts-per-minute
 - The OS running this script can handle thousands of connections https://en.wikipedia.org/wiki/C10k_problem
-
+These proved out to be true during tests up to 5000 connections. Connections beyond that number haven't been tested yet.
 
 
 # Development tips
 
-## pgsql inspect
+## pgsql inspection
 ```bash
 export $(jq -r 'to_entries|map("\(.key)=\(.value)")|.[]' secrets/db_postgresql.json)
 psql --host "$db_host" --port "$db_port" --username "$db_user" --password --dbname "$db_name"
@@ -87,7 +97,7 @@ SELECT w.url_uq, h.error_message FROM website w JOIN healthcheck h ON h.website_
 SELECT w.url_uq, (SELECT COUNT(*) FROM healthcheck WHERE website_fk = w.website_id AND http_status_code = 200) AS count_http_200, (SELECT COUNT(*) FROM healthcheck WHERE website_fk = w.website_id AND http_status_code != 200) AS count_not_http_200   FROM website w JOIN healthcheck h ON h.website_fk = w.website_id WHERE h.http_status_code != 200;
 ```
 
-## generate list of top websites
+## top websites list generation
 sources for the list of top websites:
 https://gist.githubusercontent.com/bejaneps/ba8d8eed85b0c289a05c750b3d825f61/raw/6827168570520ded27c102730e442f35fb4b6a6d/websites.csv
 https://gist.github.com/chilts/7229605
@@ -108,49 +118,43 @@ awk 'BEGIN{FS=OFS=","} {gsub(/"/, "", $1); if ($1 ~ /^[^.]*\.[^.]*$/) {sub(/^/, 
 
 
 
+# Lessons learned
+- Only run `asyncio.run()` once and only once! Even if it looks like you can separate the business logic. Chances are you'll lose your async loop context and it will break things
+    - IIRC I got this error: `RuntimeError: no running event loop sys:1: RuntimeWarning: coroutine 'worker' was never awaited`
+- You need a DB connection pool, because coroutines can't share the connection
+    - IIRC I got this error: `asyncpg  cannot perform operation: another operation is in progress`
+    - https://stackoverflow.com/questions/66444620/asyncpg-cannot-perform-operation-another-operation-is-in-progress/66448094#66448094
+    - https://github.com/MagicStack/asyncpg/issues/258
+- You need to close the DB connection pool, otherwise you'll always get an exception at the end.
+- Despite what some information may say, you shouldn't share a `ClientSession` connection pool with other websites. Because if you do you'll end up getting a cascading `asyncio.TimeoutError`. It's as if that connection got broken beyond repair. If one `session.request` failed (eg: timeout exceeded) then it would break all other requests to other sites. I tried using `TCPConnector(limit=none, enable_cleanup_closed=True, force_close=True)` but that didn't solve it. The only working solution to fix the cascading `asyncio.TimeoutError` was to create a ClientSession per site and also to using `asyncio.Semaphore`.
+
+
+
+
+
 # Bugs & Caveats
-- Redirect don't work. When making a `ClientSession.request` despite `allow_redirects` defaulting to True, if you try to access an incorrect domain, eg a naked domain, if it fails then it won't automatically try the `www.` subdomain. Browsers do a bit of magic in this regard. Another example is with `ec.europa.eu` which on the browser redirects to `commission.europa.eu` and in curl it gets a redirect status code, but in this tool it fails.
+- Redirect doesn't work. When making a `ClientSession.request` despite `allow_redirects` defaulting to True, if you try to access an incorrect domain, eg a naked domain, if it fails then it won't automatically try the `www.` subdomain. Browsers do a bit of magic in this regard. But another example of this can be seen with `ec.europa.eu` which on the browser redirects to `commission.europa.eu` and in curl it gets a redirect status code, but it didn't work in this tool with `ClientSession.request`.
+
+
+
+# TODO / Future Work
+
+## configure pool sizes
+Configure pool sizes for web requests and DB requests.
+So far there was no need to do so, but OTOH the codebase does currently use `asyncio.Semaphore`.
+
+## replace venv with Docker
+also update makefile to reflect this
+
+## CI pipeline in Github
+
+## linting et al.
+
 
 
 # References
 - regex expression adapted from https://stackoverflow.com/questions/9530950/parsing-hostname-and-port-from-string-or-url/9531189#9531189
 - async info and logic from https://realpython.com/async-io-python
 - asyncpg connection pool issue https://stackoverflow.com/questions/66444620/asyncpg-cannot-perform-operation-another-operation-is-in-progress
-- retry logic forked from https://gist.github.com/alairock/a0235eae85c62f0f0f7b81bec8aa378a
-
-
-
-# TODO / Future Work
-
-## system ulimits
-```bash
-ulimit -a
-ulimit -Ha
-```
-By default the soft limit for FD is 1024 :(
-Should be able to override that with `ulimit -n $number`
-
-This setting may also be relevant: `/proc/sys/net/core/somaxconn`
-
-```python
-import resource
-
-# Set the soft limit to a very high value (e.g., 20000) and the hard limit to infinity
-resource.setrlimit(resource.RLIMIT_NOFILE, (2 ** 14, resource.RLIM_INFINITY))
-```
-
-Related `/proc/sys/net/ipv4/tcp_keepalive_time`
-
-
-## configure pool sizes
-For web requests and DB requests.
-
-## batched/queued inserts in DB
-
-## replace venv with Docker
-also update makefile to reflect this
-
-## SQL injection
-Given that we are in control of our own config files this isn't an immediate concern.
-
+- retry logic losely based on https://gist.github.com/alairock/a0235eae85c62f0f0f7b81bec8aa378a
 

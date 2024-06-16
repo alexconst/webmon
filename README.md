@@ -72,6 +72,12 @@ These proved out to be true during tests up to 5000 connections. Connections bey
 
 # Development tips
 
+## tests
+This projects has the following tests:
+- unit tests: test a module, not making any IO calls, potentially mocking some components
+- integration tests: tests one or more modules, where IO calls are calls (eg: to the database)
+- smoke tests: end to end test, test the full app lifecycle
+
 ## pgsql inspection
 ```bash
 export $(jq -r 'to_entries|map("\(.key)=\(.value)")|.[]' secrets/db_postgresql.json)

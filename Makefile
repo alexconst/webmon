@@ -1,4 +1,4 @@
-.PHONY: help args venv depsdev deps run profiling tests tests-unit tests-integration debug
+.PHONY: help args venv depsdev deps run profiling tests tests-unit tests-integration tests-smoke debug
 
 # running make with no targets will run the first target (in this case "help")
 # this help menu
@@ -80,6 +80,13 @@ tests-integration:
 	@( \
 		[ -n "$$VIRTUAL_ENV" ] || . venv/bin/activate ;\
 		pytest -s -v --log-level=DEBUG tests_integration ;\
+	)
+
+# run smoke tests using pytest
+tests-smoke:
+	@( \
+		[ -n "$$VIRTUAL_ENV" ] || . venv/bin/activate ;\
+		pytest -s -v --log-level=DEBUG tests_smoke;\
 	)
 
 # run tests and start pdb when a test fails

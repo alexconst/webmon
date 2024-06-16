@@ -2,7 +2,7 @@ import asyncio
 import logging
 from collections import OrderedDict
 from enum import Enum
-from typing import List
+from typing import Any, Dict, Tuple, List
 
 import asyncpg
 import pydantic
@@ -41,31 +41,31 @@ class DatabaseConnectorPostgresql(DatabaseConnector):
                                                    ssl=self.db_ssl)
 
     async def close(self) -> None:
-        await self.conn_pool.close()
+        await self.conn_pool.close() # type: ignore
 
     @retry(tries=5, delay=30, backoff=2, max_interval=120, logger=logger)
-    async def db_fetch(self, query) -> List[dict]:
+    async def db_fetch(self, query: str) -> List[dict]:
         """Runs query and returns results.
 
         :return: query results.
         """
         result = []
-        async with self.conn_pool.acquire() as conn:
+        async with self.conn_pool.acquire() as conn: # type: ignore
             result = await conn.fetch(query)
         return result
 
     @retry(tries=5, delay=30, backoff=2, max_interval=120, logger=logger)
-    async def db_execute(self, query) -> None:
+    async def db_execute(self, query: str) -> None:
         """Runs query.
         """
-        async with self.conn_pool.acquire() as conn:
+        async with self.conn_pool.acquire() as conn: # type: ignore
             await conn.execute(query)
 
     @retry(tries=5, delay=30, backoff=2, max_interval=120, logger=logger)
-    async def db_executemany(self, query, data) -> None:
+    async def db_executemany(self, query: str, data: dict) -> None:
         """Runs query.
         """
-        async with self.conn_pool.acquire() as conn:
+        async with self.conn_pool.acquire() as conn: # type: ignore
             await conn.executemany(query, data)
 
     async def fetch_version(self) -> str:
@@ -183,7 +183,7 @@ class DatabaseConnectorPostgresql(DatabaseConnector):
         return query
 
     @staticmethod
-    def get_query_insert_many_into_table(table_name: str, objs: List[pydantic.BaseModel], use_name_hints: bool) -> tuple[str, dict]:
+    def get_query_insert_many_into_table(table_name: str, objs: List[pydantic.BaseModel], use_name_hints: bool) -> Tuple[str, List[Tuple[Any, ...]]]:
         """Generate SQL query to insert row into table. The new row will match the pydantic object.
 
         :param table_name: table name.

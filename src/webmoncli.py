@@ -5,11 +5,12 @@ import asyncio
 import json
 import logging
 import sys
+from typing import List
 
 from webmon.web_monitor import WebMonitor
 
 
-def setup_logging(level):
+def setup_logging(level: str) -> None:
     level = logging.getLevelName(level)
     logging.basicConfig(
         format="%(asctime)s %(levelname)s:%(name)s: %(message)s",
@@ -19,7 +20,7 @@ def setup_logging(level):
     )
 
 
-def main(argv):
+def main(argv: List) -> None:
     description = "Monitor list of sites and save metrics in database."
     use_examples = "Examples:"
     use_examples += "\n{} --db-config secrets/db_postgresql.json --sites-csv data/websites_top15.csv --number-healthchecks 5".format(argv[0])

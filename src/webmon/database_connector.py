@@ -29,11 +29,11 @@ class DatabaseConnector:
         self.db_ssl = db_ssl
 
     @abstractmethod
-    async def open(self):
+    async def open(self) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    async def close(self):
+    async def close(self) -> None:
         raise NotImplementedError
 
     @abstractmethod

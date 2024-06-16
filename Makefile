@@ -22,6 +22,7 @@ APP=src/webmoncli.py
 DEF_ARGS=
 CMD_RUN=python $(APP) $(DEF_ARGS) $(RUN_ARGS)
 CMD_PROFILING=python -mcProfile -o app.prof $(APP) $(DEF_ARGS) $(RUN_ARGS)
+PYTHON_SRC=src
 PYTHON_DIRS=tests tests_integration tests_smoke src
 
 
@@ -72,6 +73,7 @@ lint:
 		isort --settings-file pyproject.toml $(PYTHON_DIRS) ;\
 		yapf --style=pyproject.toml --recursive --in-place $(PYTHON_DIRS) ;\
 		pylint --rcfile pyproject.toml $(PYTHON_DIRS) ;\
+		mypy --show-error-codes $(PYTHON_SRC) ;\
 	)
 
 #		black --config pyproject.toml $(PYTHON_DIRS) ;\

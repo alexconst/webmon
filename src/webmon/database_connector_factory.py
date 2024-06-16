@@ -2,6 +2,7 @@ import asyncio
 from enum import Enum
 from types import SimpleNamespace
 
+from .database_connector import DatabaseConnector
 from .database_connector_postgresql import DatabaseConnectorPostgresql
 
 

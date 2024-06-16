@@ -9,4 +9,5 @@ mypy
 isort
 ruff
 yapf
+pylint
 

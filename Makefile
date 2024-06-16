@@ -71,13 +71,14 @@ lint:
 		[ -n "$$VIRTUAL_ENV" ] || . venv/bin/activate ;\
 		isort --settings-file pyproject.toml $(PYTHON_DIRS) ;\
 		yapf --style=pyproject.toml --recursive --in-place $(PYTHON_DIRS) ;\
+		pylint --rcfile pyproject.toml $(PYTHON_DIRS) ;\
 	)
 
 #		black --config pyproject.toml $(PYTHON_DIRS) ;\
 
 
 # run all tests
-tests: tests-unit tests-integration
+tests: tests-unit tests-integration tests-smoke
 
 
 # run unit tests using pytest

@@ -8,7 +8,7 @@ import json
 import pytest
 
 from webmon.database_connector_factory import DatabaseConnectorFactory, DatabaseType
-from webmon.healthcheck import Healthcheck, RegexMatchStatus
+from webmon.healthcheck import Healthcheck
 from webmon.web_monitor import WebMonitor
 
 

@@ -20,3 +20,12 @@ spaces_before_comment = 4
 column_limit = 150
 # TODO: find option to set number of empty lines between class methods
 
+[tool.pylint]
+disable = [
+    "C0413",  # Misplaced import statement
+    "E0401"   # unable to import local modules
+]
+
+[tool.pylint.'MESSAGES CONTROL']
+max-line-length = 150
+

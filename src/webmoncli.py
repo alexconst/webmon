@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 
-import sys
 import argparse
+import asyncio
 import json
 import logging
-import asyncio
+import sys
+
 from webmon.web_monitor import WebMonitor
 
 

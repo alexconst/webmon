@@ -1,8 +1,10 @@
 import asyncio
 import logging
-import pytest
 import os
 import sys
+
+import pytest
+
 sys.path.append(os.path.join(os.path.dirname(__file__), '../src/'))
 from webmon.retry import retry
 

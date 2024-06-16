@@ -1,13 +1,15 @@
 import os
 import sys
+
 sys.path.append(os.path.join(os.path.dirname(__file__), '../src/'))
+import asyncio
+import json
+from types import SimpleNamespace
+
+import pytest
+
 from webmon.database_connector_postgresql import DatabaseConnectorPostgresql
 from webmon.website import Website
-from types import SimpleNamespace
-import asyncio
-import pytest
-import json
-
 
 # uncomment if debugging:
 #import logging

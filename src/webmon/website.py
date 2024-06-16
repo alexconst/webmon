@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 
+
 class Website(BaseModel):
     """A Pydantic model representing a website health check configuration.
 

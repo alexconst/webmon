@@ -1,13 +1,15 @@
 import os
 import sys
+
 sys.path.append(os.path.join(os.path.dirname(__file__), '../src/'))
-from webmon.web_monitor import WebMonitor
-from webmon.healthcheck import Healthcheck, RegexMatchStatus
-from webmon.database_connector_factory import DatabaseConnectorFactory, DatabaseType
-import pytest
 import asyncio
 import json
 
+import pytest
+
+from webmon.database_connector_factory import DatabaseConnectorFactory, DatabaseType
+from webmon.healthcheck import Healthcheck, RegexMatchStatus
+from webmon.web_monitor import WebMonitor
 
 
 @pytest.mark.asyncio(scope="class")

@@ -1,9 +1,10 @@
 import os
 import sys
+
 sys.path.append(os.path.join(os.path.dirname(__file__), '../src/'))
 from webmon.database_connector_postgresql import DatabaseConnectorPostgresql
-from webmon.website import Website
 from webmon.healthcheck import Healthcheck, RegexMatchStatus
+from webmon.website import Website
 
 
 def clean(text):

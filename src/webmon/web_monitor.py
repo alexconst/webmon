@@ -1,17 +1,19 @@
 import asyncio
-from aiohttp import ClientSession, TCPConnector, ClientTimeout
 import csv
 import json
-import re
 import logging
+import os
+import re
+import sys
+import time
 from types import SimpleNamespace
 from typing import List, Optional
-import time
+
+from aiohttp import ClientSession, ClientTimeout, TCPConnector
+
 from .database_connector_factory import DatabaseConnectorFactory, DatabaseType
-from .website import Website
 from .healthcheck import Healthcheck, RegexMatchStatus
-import sys
-import os
+from .website import Website
 
 logger = logging.getLogger("webmonitor")
 

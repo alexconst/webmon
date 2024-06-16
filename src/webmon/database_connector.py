@@ -1,7 +1,8 @@
-from typing import List
 from abc import ABC, abstractmethod
-import pydantic
 from enum import Enum
+from typing import List
+
+import pydantic
 
 
 class DatabaseConnector:

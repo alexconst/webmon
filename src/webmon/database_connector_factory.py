@@ -1,7 +1,9 @@
+import asyncio
 from enum import Enum
 from types import SimpleNamespace
-import asyncio
+
 from .database_connector_postgresql import DatabaseConnectorPostgresql
+
 
 class DatabaseType(Enum):
     POSTGRESQL = 100

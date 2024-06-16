@@ -161,7 +161,7 @@ Also update makefile to reflect this
 Integrate the use of code quality tools, with some of them potentially in the form of git pre-commit hooks.
 - black: code auto formating
 - isort: auto format imports
-- pylint: check for potential errors and enforcing coding standards
+- pylint: check for potential errors and enforcing coding standards; other alternatives are flake8 or ruff
 - mypy: static type checker
 - bandit: security linter
 

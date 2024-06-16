@@ -1,4 +1,4 @@
-.PHONY: help args venv depsdev deps run profiling tests tests-unit tests-integration tests-smoke debug
+.PHONY: help args venv depsdev deps run profiling lint tests tests-unit tests-integration tests-smoke debug
 
 # running make with no targets will run the first target (in this case "help")
 # this help menu
@@ -61,6 +61,15 @@ profiling: args
 		[ -n "$$VIRTUAL_ENV" ] || . venv/bin/activate ;\
 		$(CMD_PROFILING) ;\
 		tuna app.prof ;\
+	)
+
+
+# run auto-formaters, linters, static analyzers
+lint:
+	@( \
+		[ -n "$$VIRTUAL_ENV" ] || . venv/bin/activate ;\
+		isort tests tests_integration tests_smoke src ;\
+		pwd ;\
 	)
 
 

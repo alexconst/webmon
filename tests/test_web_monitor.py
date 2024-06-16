@@ -11,5 +11,3 @@ def test_get_valid_url():
     assert WebMonitor.get_valid_url('foo.com:8080') == 'http://foo.com:8080'
     assert WebMonitor.get_valid_url('foo.io/health') == 'https://foo.io:443/health'
     assert WebMonitor.get_valid_url('foo.com:8080/health') == 'http://foo.com:8080/health'
-
-

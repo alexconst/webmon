@@ -31,14 +31,12 @@ class TestDatabaseConnectorPostgresql:
         TestDatabaseConnectorPostgresql.db = DatabaseConnectorPostgresql(cfg.db_user, cfg.db_pass, cfg.db_name, cfg.db_host, cfg.db_port, cfg.db_ssl)
         await TestDatabaseConnectorPostgresql.db.open()
 
-
     async def test_fetch_version(self):
         if not TestDatabaseConnectorPostgresql.db:
             await self.setup()
         res = await TestDatabaseConnectorPostgresql.db.fetch_version()
         assert 'PostgreSQL' in res[0]
         assert 'compiled by gcc' in res[0]
-
 
     async def test_execute_table_lifecycle(self):
         if not TestDatabaseConnectorPostgresql.db:
@@ -62,7 +60,6 @@ class TestDatabaseConnectorPostgresql:
         finally:
             # clean up any failed test
             await TestDatabaseConnectorPostgresql.db.execute_drop_table(table_name)
-
 
     async def test_execute_insert_table(self):
         if not TestDatabaseConnectorPostgresql.db:
@@ -88,7 +85,6 @@ class TestDatabaseConnectorPostgresql:
             # clean up
             await TestDatabaseConnectorPostgresql.db.execute_drop_table(table_name)
 
-
     async def test_execute_insert_table_and_fetch_all(self):
         if not TestDatabaseConnectorPostgresql.db:
             await self.setup()
@@ -109,7 +105,6 @@ class TestDatabaseConnectorPostgresql:
             # clean up
             await TestDatabaseConnectorPostgresql.db.execute_drop_table(table_name)
 
-
     async def test_execute_insert_many_table(self):
         if not TestDatabaseConnectorPostgresql.db:
             await self.setup()
@@ -129,5 +124,3 @@ class TestDatabaseConnectorPostgresql:
         finally:
             # clean up
             await TestDatabaseConnectorPostgresql.db.execute_drop_table(table_name)
-
-

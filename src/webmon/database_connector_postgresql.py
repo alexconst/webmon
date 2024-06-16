@@ -12,6 +12,7 @@ from .retry import retry
 
 logger = logging.getLogger("webmonitor")
 
+
 class DatabaseConnectorPostgresql(DatabaseConnector):
     """DB connection module to PostgreSQL.
     """
@@ -31,20 +32,16 @@ class DatabaseConnectorPostgresql(DatabaseConnector):
         super().__init__(db_user, db_pass, db_name, db_host, db_port, db_ssl)
         self.conn_pool = None
 
-
     async def open(self) -> None:
-        self.conn_pool = await asyncpg.create_pool(
-                user=self.db_user,
-                password=self.db_pass,
-                database=self.db_name,
-                host=self.db_host,
-                port=self.db_port,
-                ssl=self.db_ssl)
-
+        self.conn_pool = await asyncpg.create_pool(user=self.db_user,
+                                                   password=self.db_pass,
+                                                   database=self.db_name,
+                                                   host=self.db_host,
+                                                   port=self.db_port,
+                                                   ssl=self.db_ssl)
 
     async def close(self) -> None:
         await self.conn_pool.close()
-
 
     @retry(tries=5, delay=30, backoff=2, max_interval=120, logger=logger)
     async def db_fetch(self, query) -> List[dict]:
@@ -57,7 +54,6 @@ class DatabaseConnectorPostgresql(DatabaseConnector):
             result = await conn.fetch(query)
         return result
 
-
     @retry(tries=5, delay=30, backoff=2, max_interval=120, logger=logger)
     async def db_execute(self, query) -> None:
         """Runs query.
@@ -65,14 +61,12 @@ class DatabaseConnectorPostgresql(DatabaseConnector):
         async with self.conn_pool.acquire() as conn:
             await conn.execute(query)
 
-
     @retry(tries=5, delay=30, backoff=2, max_interval=120, logger=logger)
     async def db_executemany(self, query, data) -> None:
         """Runs query.
         """
         async with self.conn_pool.acquire() as conn:
             await conn.executemany(query, data)
-
 
     async def fetch_version(self) -> str:
         """Returns DB version.
@@ -84,7 +78,6 @@ class DatabaseConnectorPostgresql(DatabaseConnector):
         res = await self.db_fetch(query)
         res = res[0]
         return res
-
 
     async def fetch_all_from_table(self, table_name: str, cls: pydantic.BaseModel) -> List[pydantic.BaseModel]:
         """Returns all rows in table.
@@ -103,7 +96,6 @@ class DatabaseConnectorPostgresql(DatabaseConnector):
             res += [row]
         return res
 
-
     async def execute_create_table(self, table_name: str, obj: pydantic.BaseModel) -> None:
         """Creates a table if it doesn't exist. The rows and their type are matched to the pydantic object.
 
@@ -113,7 +105,6 @@ class DatabaseConnectorPostgresql(DatabaseConnector):
         query = DatabaseConnectorPostgresql.get_query_create_table(table_name, obj, True)
         await self.db_execute(query)
 
-
     async def execute_drop_table(self, table_name: str) -> None:
         """Drop table.
 
@@ -121,7 +112,6 @@ class DatabaseConnectorPostgresql(DatabaseConnector):
         """
         query = DatabaseConnectorPostgresql.get_query_drop_table(table_name)
         await self.db_execute(query)
-
 
     async def execute_insert_into_table(self, table_name: str, obj: pydantic.BaseModel) -> None:
         """Inserts the corresponding row representation of obj into a table.
@@ -141,10 +131,6 @@ class DatabaseConnectorPostgresql(DatabaseConnector):
         query, data = DatabaseConnectorPostgresql.get_query_insert_many_into_table(table_name, objs, True)
         await self.db_executemany(query, data)
 
-
-
-
-
     @staticmethod
     def get_query_create_table(table_name: str, obj: pydantic.BaseModel, use_name_hints: bool) -> str:
         """Generate SQL query to create table. The rows and their type are matched to the pydantic object.
@@ -157,7 +143,16 @@ class DatabaseConnectorPostgresql(DatabaseConnector):
         :return: SQL query.
         :rtype: string
         """
-        mappings = {'int': 'INT', 'integer': 'INT', 'number': 'FLOAT', 'float': 'FLOAT', 'enum': 'INT', 'str': 'TEXT', 'string': 'TEXT', 'datetime': 'DATETIME'}
+        mappings = {
+            'int': 'INT',
+            'integer': 'INT',
+            'number': 'FLOAT',
+            'float': 'FLOAT',
+            'enum': 'INT',
+            'str': 'TEXT',
+            'string': 'TEXT',
+            'datetime': 'DATETIME'
+        }
         query = f"CREATE TABLE IF NOT EXISTS {table_name} (\n"
         schema_dict = obj.model_json_schema()
         primary_key = ''
@@ -176,7 +171,6 @@ class DatabaseConnectorPostgresql(DatabaseConnector):
         query = query[:-2] + primary_key + ");"
         return query
 
-
     @staticmethod
     def get_query_drop_table(table_name: str) -> str:
         """Drop table.
@@ -187,7 +181,6 @@ class DatabaseConnectorPostgresql(DatabaseConnector):
         """
         query = f"DROP TABLE IF EXISTS {table_name};"
         return query
-
 
     @staticmethod
     def get_query_insert_many_into_table(table_name: str, objs: List[pydantic.BaseModel], use_name_hints: bool) -> tuple[str, dict]:
@@ -232,9 +225,11 @@ class DatabaseConnectorPostgresql(DatabaseConnector):
         columns_str = ', '.join(columns)
         placeholders_str = ', '.join(placeholders)
         conflict_expression = f"ON CONFLICT ({', '.join(columns_conflict)}) DO NOTHING" if columns_conflict else ""
-        query = query_template.format(table_name=table_name, columns=columns_str, placeholders=placeholders_str, conflict_expression=conflict_expression)
+        query = query_template.format(table_name=table_name,
+                                      columns=columns_str,
+                                      placeholders=placeholders_str,
+                                      conflict_expression=conflict_expression)
         return query, rows
-
 
     @staticmethod
     def get_query_db_version() -> str:
@@ -246,7 +241,6 @@ class DatabaseConnectorPostgresql(DatabaseConnector):
         query = 'SELECT VERSION()'
         return query
 
-
     @staticmethod
     def get_query_select_all(table_name: str) -> str:
         """Generate SQL query to get all rows from table.
@@ -257,5 +251,3 @@ class DatabaseConnectorPostgresql(DatabaseConnector):
         """
         query = f'SELECT * FROM {table_name}'
         return query
-
-

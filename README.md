@@ -164,6 +164,7 @@ Integrate the use of code quality tools, with some of them potentially in the fo
 - pylint: check for potential errors and enforcing coding standards; other alternatives are flake8 or ruff
 - mypy: static type checker
 - bandit: security linter
+- coverage: measures code coverage by tests
 
 
 # References

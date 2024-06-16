@@ -37,7 +37,7 @@ class TestWebMonitor:
         # prepare
         self.setup()
         with open(TestWebMonitor.wm.db_config, 'r') as file:
-           TestWebMonitor.wm.db_config = json.load(file)
+            TestWebMonitor.wm.db_config = json.load(file)
         db_type = DatabaseType[TestWebMonitor.wm.db_config['db_type'].upper()]
         TestWebMonitor.wm.dbc = await DatabaseConnectorFactory(db_type, TestWebMonitor.wm.db_config).get_connector()
         await TestWebMonitor.wm.dbc.open()
@@ -52,4 +52,3 @@ class TestWebMonitor:
         await TestWebMonitor.wm._finish()
         self.setup()
         await TestWebMonitor.wm.run('drop-tables')
-

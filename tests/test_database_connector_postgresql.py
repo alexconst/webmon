@@ -22,7 +22,13 @@ def test_get_query_create_table():
     exp = 'CREATE TABLE IF NOT EXISTS website (\nwebsite_id INT,\nurl_uq TEXT,\ninterval INT,\nregex TEXT);'
     assert clean(res) == clean(exp)
 
-    check = Healthcheck(check_id=123, website_fk=33, request_timestamp=1718055080.050827, response_time=3.14, http_status_code=200, regex_match_status=RegexMatchStatus.OK, error_message='')
+    check = Healthcheck(check_id=123,
+                        website_fk=33,
+                        request_timestamp=1718055080.050827,
+                        response_time=3.14,
+                        http_status_code=200,
+                        regex_match_status=RegexMatchStatus.OK,
+                        error_message='')
     res = DatabaseConnectorPostgresql.get_query_create_table('healthcheck', check, True)
     exp = 'CREATE TABLE IF NOT EXISTS healthcheck (\ncheck_id SERIAL,\nwebsite_fk INT,\nrequest_timestamp FLOAT,\nresponse_time FLOAT,\nhttp_status_code INT,\nregex_match_status INT,\nerror_message TEXT,\nPRIMARY KEY (check_id)\n);'
     assert clean(res) == clean(exp)
@@ -46,4 +52,3 @@ def test_get_querypair_insert_many_into_table():
     exp_data = [('https://foo.bar', 5, ''), ('https://matrix.bar', 10, 'neo')]
     assert res_query == exp_query
     assert res_data == exp_data
-

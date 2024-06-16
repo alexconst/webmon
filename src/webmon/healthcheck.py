@@ -8,6 +8,7 @@ class RegexMatchStatus(Enum):
     OK = 1
     NA = 2
 
+
 class Healthcheck(BaseModel):
     """A Pydantic model representing a website health check result.
 
@@ -26,4 +27,3 @@ class Healthcheck(BaseModel):
     http_status_code: int
     regex_match_status: RegexMatchStatus
     error_message: str
-

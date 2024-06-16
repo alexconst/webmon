@@ -22,6 +22,7 @@ APP=src/webmoncli.py
 DEF_ARGS=
 CMD_RUN=python $(APP) $(DEF_ARGS) $(RUN_ARGS)
 CMD_PROFILING=python -mcProfile -o app.prof $(APP) $(DEF_ARGS) $(RUN_ARGS)
+PYTHON_DIRS=tests tests_integration tests_smoke src
 
 
 # create python virtual env: MY TEST
@@ -68,9 +69,11 @@ profiling: args
 lint:
 	@( \
 		[ -n "$$VIRTUAL_ENV" ] || . venv/bin/activate ;\
-		isort tests tests_integration tests_smoke src ;\
-		pwd ;\
+		isort --settings-file pyproject.toml $(PYTHON_DIRS) ;\
+		yapf --style=pyproject.toml --recursive --in-place $(PYTHON_DIRS) ;\
 	)
+
+#		black --config pyproject.toml $(PYTHON_DIRS) ;\
 
 
 # run all tests

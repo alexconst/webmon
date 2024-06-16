@@ -13,4 +13,3 @@ class Website(BaseModel):
     url_uq: str
     interval: int
     regex: str
-

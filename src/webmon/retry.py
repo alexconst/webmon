@@ -37,6 +37,7 @@ def retry(**kwargs):
     logger = kwargs.get('logger', None)
 
     def decorator(func):
+
         async def wrapper(*args, **kwargs):
             current_delay = delay
             for attempt in range(tries):
@@ -54,7 +55,7 @@ def retry(**kwargs):
                         current_delay = max_interval
                     await asyncio.sleep(current_delay)
             raise TooManyTriesException(f"{func.__name__} failed after {tries} attempts")
+
         return wrapper
+
     return decorator
-
-

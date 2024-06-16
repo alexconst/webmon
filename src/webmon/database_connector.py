@@ -28,7 +28,6 @@ class DatabaseConnector:
         self.db_port = db_port
         self.db_ssl = db_ssl
 
-
     @abstractmethod
     async def open(self):
         raise NotImplementedError
@@ -52,7 +51,6 @@ class DatabaseConnector:
     @abstractmethod
     async def fetch_all_from_table(self, table_name: str, cls: pydantic.BaseModel) -> List[pydantic.BaseModel]:
         raise NotImplementedError
-
 
     @staticmethod
     def row_to_pydantic(row: dict, cls: pydantic.BaseModel) -> pydantic.BaseModel:
@@ -78,5 +76,3 @@ class DatabaseConnector:
                     row[key] = 0
         res = cls.model_validate(row)
         return res
-
-

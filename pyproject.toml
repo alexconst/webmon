@@ -1,0 +1,22 @@
+[tool.isort]
+profile = "black"
+skip = ['.gitignore']
+
+[tool.black]
+line-length = 150
+target-version = ['py38', 'py39']
+include = '\.pyi?$'
+exclude = '''
+/(
+  \.direnv|\.eggs|\.git|\.mypy_cache|\.venv
+)
+'''
+skip-string-normalization = true  # leave strings untouched, don't replace single quotes with double quotes
+
+[tool.yapf]
+blank_lines_around_top_level_definition = 2
+blank_line_before_nested_class_or_def = true
+spaces_before_comment = 4
+column_limit = 150
+# TODO: find option to set number of empty lines between class methods
+

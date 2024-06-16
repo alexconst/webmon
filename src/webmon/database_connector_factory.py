@@ -8,6 +8,7 @@ from .database_connector_postgresql import DatabaseConnectorPostgresql
 class DatabaseType(Enum):
     POSTGRESQL = 100
 
+
 class DatabaseConnectorFactory():
 
     def __init__(self, db_type: DatabaseType, db_config: dict):
@@ -21,4 +22,3 @@ class DatabaseConnectorFactory():
         else:
             raise NotImplementedError
         return dbc
-

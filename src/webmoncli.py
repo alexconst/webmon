@@ -13,10 +13,11 @@ def setup_logging(level):
     level = logging.getLevelName(level)
     logging.basicConfig(
         format="%(asctime)s %(levelname)s:%(name)s: %(message)s",
-        level=level, # logging.DEBUG,
+        level=level,    # logging.DEBUG,
         datefmt="%H:%M:%S",
         stream=sys.stderr,
     )
+
 
 def main(argv):
     description = "Monitor list of sites and save metrics in database."
@@ -27,38 +28,30 @@ def main(argv):
 
     parser = argparse.ArgumentParser(description=description, epilog=use_examples, formatter_class=argparse.RawDescriptionHelpFormatter)
 
-    parser.add_argument(
-        '--log-level',
-        metavar=('LOG_LEVEL'),
-        nargs=1,
-        default=['INFO'],
-        help='Desired log level. Defaults to INFO. To only view sites that failed healthechecks use ERROR')
-    parser.add_argument(
-        '--db-config',
-        metavar=('FILENAME_DBCONFIG'),
-        type=str,
-        nargs=1,
-        help='JSON file with DB access secrets and details.')
+    parser.add_argument('--log-level',
+                        metavar=('LOG_LEVEL'),
+                        nargs=1,
+                        default=['INFO'],
+                        help='Desired log level. Defaults to INFO. To only view sites that failed healthechecks use ERROR')
+    parser.add_argument('--db-config', metavar=('FILENAME_DBCONFIG'), type=str, nargs=1, help='JSON file with DB access secrets and details.')
     parser.add_argument(
         '--sites-csv',
         metavar=('FILENAME_CSV'),
         type=str,
         nargs=1,
-        help='CSV file with list of websites to monitor. These will be appended to the existing ones in the DB. Each row includes: URL, time interval in seconds, optional regex.')
-    parser.add_argument(
-        '--number-healthchecks',
-        metavar=('NUMBER_CHECKS'),
-        type=int,
-        nargs=1,
-        help='Number of healthchecks to perform per websites. For an infinite number use -1.')
+        help=
+        'CSV file with list of websites to monitor. These will be appended to the existing ones in the DB. Each row includes: URL, time interval in seconds, optional regex.'
+    )
+    parser.add_argument('--number-healthchecks',
+                        metavar=('NUMBER_CHECKS'),
+                        type=int,
+                        nargs=1,
+                        help='Number of healthchecks to perform per websites. For an infinite number use -1.')
     parser.add_argument(
         '--sites-table',
         action='store_true',
         help='For the website checks rules, use the pre-existing information in the DB (eg: which was inserted from a previous execution).')
-    parser.add_argument(
-        '--drop-tables',
-        action='store_true',
-        help='Drop tables for websites and healthchecks.')
+    parser.add_argument('--drop-tables', action='store_true', help='Drop tables for websites and healthchecks.')
 
     args = parser.parse_args()
     if len(argv) == 1:
@@ -93,5 +86,3 @@ def main(argv):
 
 if __name__ == '__main__':
     main(sys.argv)
-
-

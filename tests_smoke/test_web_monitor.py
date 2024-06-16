@@ -8,7 +8,6 @@ import pytest
 import asyncio
 import json
 
-import ipdb
 
 
 @pytest.mark.asyncio(scope="class")

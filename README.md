@@ -44,7 +44,7 @@ source venv/bin/activate
 
 ## websites CSV
 Uses `,` as the delimiter between fields and optional `"` quotes to surrond strings.
-The optional regex can't break the CSV format otherwise it will not be parsed properly.
+The optional regex must not break the CSV format otherwise it will not be parsed properly.
 
 Example:
 ```

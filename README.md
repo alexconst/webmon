@@ -157,8 +157,13 @@ Also update makefile to reflect this
 
 ## CI pipeline in Github
 
-## linting et al.
-
+## improve code quality
+Integrate the use of code quality tools, with some of them potentially in the form of git pre-commit hooks.
+- black: code auto formating
+- isort: auto format imports
+- pylint: check for potential errors and enforcing coding standards
+- mypy: static type checker
+- bandit: security linter
 
 
 # References

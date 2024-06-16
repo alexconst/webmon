@@ -16,7 +16,7 @@ formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
-logger = None    # comment this to help with debugging
+logger = None  # comment this to help with debugging
 
 
 # Mock function to test the retry decorator

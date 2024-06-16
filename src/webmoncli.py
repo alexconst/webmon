@@ -14,7 +14,7 @@ def setup_logging(level: str) -> None:
     level = logging.getLevelName(level)
     logging.basicConfig(
         format="%(asctime)s %(levelname)s:%(name)s: %(message)s",
-        level=level,    # logging.DEBUG,
+        level=level,  # logging.DEBUG,
         datefmt="%H:%M:%S",
         stream=sys.stderr,
     )

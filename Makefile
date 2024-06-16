@@ -23,7 +23,8 @@ DEF_ARGS=
 CMD_RUN=python $(APP) $(DEF_ARGS) $(RUN_ARGS)
 CMD_PROFILING=python -mcProfile -o app.prof $(APP) $(DEF_ARGS) $(RUN_ARGS)
 PYTHON_SRC=src
-PYTHON_DIRS=tests tests_integration tests_smoke src
+PYTHON_TESTS=tests tests_integration tests_smoke
+PYTHON_DIRS=$(PYTHON_SRC) $(PYTHON_TESTS)
 
 
 # create python virtual env: MY TEST
@@ -72,7 +73,8 @@ lint:
 		[ -n "$$VIRTUAL_ENV" ] || . venv/bin/activate ;\
 		isort --settings-file pyproject.toml $(PYTHON_DIRS) ;\
 		yapf --style=pyproject.toml --recursive --in-place $(PYTHON_DIRS) ;\
-		pylint --rcfile pyproject.toml $(PYTHON_DIRS) ;\
+		pylint --rcfile pyproject.toml $(PYTHON_SRC) ;\
+		pylint --rcfile pyproject.toml $(PYTHON_TESTS) ;\
 		mypy --show-error-codes $(PYTHON_SRC) ;\
 	)
 

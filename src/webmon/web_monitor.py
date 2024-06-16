@@ -29,12 +29,12 @@ class WebMonitor:
         :param site_list: filename with list of websites to check
         :param num_checks: how many checks to perform per website before finishing. Use -1 for infinite.
         """
-        self.db_config = db_config    # after proper init it will be a map with the DB config
-        self.site_list = site_list    # after proper init it will be a list of website healthcheck rules
+        self.db_config = db_config  # after proper init it will be a map with the DB config
+        self.site_list = site_list  # after proper init it will be a list of website healthcheck rules
         self.tablename_website = 'website'
         self.tablename_healthcheck = 'healthcheck'
         self.num_checks = num_checks
-        self.dbc = None    # DB connector
+        self.dbc = None  # DB connector
 
     async def run(self, action: str) -> None:
         """Main entry point. Performs selected action.
@@ -46,9 +46,9 @@ class WebMonitor:
         if action in ['monitor', 'drop-tables']:
             with open(self.db_config, 'r') as file:
                 self.db_config = json.load(file)
-            db_type = DatabaseType[self.db_config['db_type'].upper()] # type: ignore
-            self.dbc = await DatabaseConnectorFactory(db_type, self.db_config).get_connector() # type: ignore
-            await self.dbc.open() # type: ignore
+            db_type = DatabaseType[self.db_config['db_type'].upper()]  # type: ignore
+            self.dbc = await DatabaseConnectorFactory(db_type, self.db_config).get_connector()  # type: ignore
+            await self.dbc.open()  # type: ignore
         if action == 'monitor':
             await self._prepare()
             await self._monitor()
@@ -60,23 +60,23 @@ class WebMonitor:
 
     async def _finish(self) -> None:
         if self.dbc:
-            await self.dbc.close() # type: ignore
+            await self.dbc.close()  # type: ignore
 
     async def _drop_tables(self) -> None:
-        await self.dbc.execute_drop_table(self.tablename_healthcheck) # type: ignore
-        await self.dbc.execute_drop_table(self.tablename_website) # type: ignore
+        await self.dbc.execute_drop_table(self.tablename_healthcheck)  # type: ignore
+        await self.dbc.execute_drop_table(self.tablename_website)  # type: ignore
 
     async def _prepare(self) -> None:
         """Create DB tables. Process list of websites to healthcheck. Configure system resources limit.
         """
-        await self.dbc.execute_create_table(self.tablename_website, Website) # type: ignore
-        await self.dbc.execute_create_table(self.tablename_healthcheck, Healthcheck) # type: ignore
+        await self.dbc.execute_create_table(self.tablename_website, Website)  # type: ignore
+        await self.dbc.execute_create_table(self.tablename_healthcheck, Healthcheck)  # type: ignore
         # if a website list was provided then read it and setup the DB
         if self.site_list:
             if self.site_list.endswith('.csv') and os.path.exists(self.site_list):
                 self._read_sites_from_file()
-                await self.dbc.execute_create_table(self.tablename_website, Website) # type: ignore
-                await self._db_insert_many_website_entry(self.site_list) # type: ignore
+                await self.dbc.execute_create_table(self.tablename_website, Website)  # type: ignore
+                await self._db_insert_many_website_entry(self.site_list)  # type: ignore
             else:
                 logger.fatal(f"Invalid file provided. Either file doesn't exist or it doesn't have a .csv extension: {self.site_list}")
                 await self._finish()
@@ -95,14 +95,14 @@ class WebMonitor:
         with open(self.site_list, 'r') as csv_file:
             csv_reader = csv.reader(csv_file, delimiter=delimiter)
             for idx, row in enumerate(csv_reader):
-                if not row:    # skip blank lines
+                if not row:  # skip blank lines
                     continue
                 if idx == 0 and f'host{delimiter}interval' in str(row):
                     continue
                 url, interval, regex = split_row(row)
-                url = WebMonitor.get_valid_url(url, False)    # better disable any "magic" for non-naked domain
+                url = WebMonitor.get_valid_url(url, False)  # better disable any "magic" for non-naked domain
                 sites.append(Website(website_id=-1, url_uq=url, interval=interval, regex=regex))
-        self.site_list = sites # type: ignore
+        self.site_list = sites  # type: ignore
 
     @staticmethod
     def get_valid_url(url: str, no_naked_domain: bool = False) -> str:
@@ -115,10 +115,10 @@ class WebMonitor:
         """
         url_regex = '(?P<protocol>http.*://)?(?P<host>[^:/ ]+).?(?P<port>[0-9]*)/?(?P<path>.*)'
         m = re.search(url_regex, url)
-        protocol = m.group('protocol') # type: ignore
-        host = m.group('host') # type: ignore
-        port = m.group('port') # type: ignore
-        path = m.group('path') # type: ignore
+        protocol = m.group('protocol')  # type: ignore
+        host = m.group('host')  # type: ignore
+        port = m.group('port')  # type: ignore
+        path = m.group('path')  # type: ignore
         if no_naked_domain and host.count('.') < 2:
             host = f'www.{host}'
         if not port and not protocol:
@@ -140,7 +140,7 @@ class WebMonitor:
     async def _read_sites_from_db(self) -> None:
         """Read list of websites to perform health checks from the DB.
         """
-        res = await self.dbc.fetch_all_from_table(self.tablename_website, Website) # type: ignore
+        res = await self.dbc.fetch_all_from_table(self.tablename_website, Website)  # type: ignore
         self.site_list = res
         if len(res) == 0:
             logger.fatal("The DB doesn't have any entries for the website checks. Please re-run using the file option.")
@@ -164,12 +164,12 @@ class WebMonitor:
 
         :param websites: list of websites to insert in the table
         """
-        await self.dbc.execute_insert_many_into_table(self.tablename_website, websites) # type: ignore
+        await self.dbc.execute_insert_many_into_table(self.tablename_website, websites)  # type: ignore
 
     async def _db_insert_healthcheck_entry(self, check: Healthcheck) -> None:
         """Insert result of a website health check in the DB.
         """
-        await self.dbc.execute_insert_many_into_table(self.tablename_healthcheck, [check]) # type: ignore
+        await self.dbc.execute_insert_many_into_table(self.tablename_healthcheck, [check])  # type: ignore
 
     async def _monitor(self) -> None:
         """Creates and starts a coroutine for each website that needs to be monitored.
@@ -177,7 +177,7 @@ class WebMonitor:
         sem = asyncio.Semaphore(100)
         tasks = []
         for website in self.site_list:
-            tasks.append(self._healthcheck_website(website, sem)) # type: ignore
+            tasks.append(self._healthcheck_website(website, sem))  # type: ignore
         await asyncio.gather(*tasks)
 
     async def _healthcheck_website(self, website: Website, sem: asyncio.Semaphore) -> None:
@@ -198,13 +198,13 @@ class WebMonitor:
         regex_pattern = None
         if website.regex:
             regex_pattern = re.compile(website.regex)
-        connector = TCPConnector(limit=None, enable_cleanup_closed=True, force_close=True)   # type: ignore  # limit=None for no limit 
+        connector = TCPConnector(limit=None, enable_cleanup_closed=True, force_close=True)  # type: ignore  # limit=None for no limit
         total_timeout = ClientTimeout(total=timeout_seconds)
         async with ClientSession(connector=connector, timeout=total_timeout) as session:
             while num_checks != 0:
                 num_checks -= 1
                 await asyncio.sleep(website.interval)
-                check = await self._request_website(session, website, sem, request_headers, regex_pattern) # type: ignore
+                check = await self._request_website(session, website, sem, request_headers, regex_pattern)  # type: ignore
 
                 msg = f'Got HTTP response code [{check.http_status_code}] for URL: {website.url_uq}'
                 if check.http_status_code >= 300:
@@ -213,7 +213,7 @@ class WebMonitor:
                     logger.info(msg)
                 if check.error_message:
                     check.error_message = f"{website.url_uq} {check.error_message}"
-                    check.error_message = check.error_message[:300]    # trim error message to something reasonable
+                    check.error_message = check.error_message[:300]  # trim error message to something reasonable
 
                 await self._db_insert_healthcheck_entry(check)
                 logger.debug(f'Finished inserting in DB the check results for: {website.url_uq}')
@@ -250,14 +250,14 @@ class WebMonitor:
                 logger.debug(f'OKed making web request for: {website.url_uq}')
                 if website.regex:
                     html = await resp.text()
-                resp.close()    # https://github.com/aio-libs/aiohttp/issues/5277#issuecomment-944448361
+                resp.close()  # https://github.com/aio-libs/aiohttp/issues/5277#issuecomment-944448361
             status_code = resp.status
         except asyncio.TimeoutError as exp:
             logger.debug(f'FAILed making web request for: {website.url_uq}')
-            status_code = 598    # (Informal convention) Network read timeout error
+            status_code = 598  # (Informal convention) Network read timeout error
             error_message += f"{str(exp.__class__)} {str(exp)}"
         except Exception as exp:
-            status_code = 555    # observed expections include: ClientConnectorError, ClientOSError
+            status_code = 555  # observed expections include: ClientConnectorError, ClientOSError
             error_message += f"{str(exp.__class__)} {str(exp)}"
         response_time = time.time() - request_timestamp
 

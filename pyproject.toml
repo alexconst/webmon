@@ -16,14 +16,15 @@ skip-string-normalization = true  # leave strings untouched, don't replace singl
 [tool.yapf]
 blank_lines_around_top_level_definition = 2
 blank_line_before_nested_class_or_def = true
-spaces_before_comment = 4
+spaces_before_comment = 2
 column_limit = 150
 # TODO: find option to set number of empty lines between class methods
 
 [tool.pylint]
 disable = [
     "C0413",  # Misplaced import statement
-    "E0401"   # unable to import local modules
+    "E0401",  # unable to import local modules
+    "F0010"   # complains about __init__.py in tests
 ]
 
 [tool.pylint.'MESSAGES CONTROL']

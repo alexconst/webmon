@@ -13,6 +13,14 @@ sudo apt-get install libpq-dev postgresql-common
 
 make venv
 make deps
+# and optionally:
+make depsdev
+```
+
+If you do not have a DB running with an appropriate configuration file in `secrets/` yet, then the following will pull a PostgreSQL docker image, spin up a container, and save the config to `secrets/db_postgresql_container.json`
+```bash
+make depsdevdb
+make depsdevdbrun
 ```
 
 ## Run it
@@ -154,6 +162,8 @@ Consider if using an async queue for the regex check work would be beneficial.
 
 ## replace venv with Docker
 Also update makefile to reflect this
+Maybe create a docker compose file with one container for the web server and another for the db server.
+Worth noting that the docker commands to spin a test DB are still useful on their own for dev purposes.
 
 ## CI pipeline in Github
 

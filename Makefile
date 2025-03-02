@@ -1,4 +1,4 @@
-.PHONY: help args venv depsdev deps run profiling lint tests tests-unit tests-integration tests-smoke debug
+.PHONY: help args venv depsdevdb depsdevdbrun depsdev deps run profiling lint tests tests-unit tests-integration tests-smoke debug
 
 # running make with no targets will run the first target (in this case "help")
 # this help menu
@@ -27,7 +27,7 @@ PYTHON_TESTS=tests tests_integration tests_smoke
 PYTHON_DIRS=$(PYTHON_SRC) $(PYTHON_TESTS)
 
 
-# create python virtual env: MY TEST
+# create python virtual env
 venv:
 	( \
 		test -d venv || python3 -m venv venv ;\
@@ -36,19 +36,39 @@ venv:
 	)
 # regarding wheel see https://github.com/pypa/pip/issues/8102#issuecomment-619528947
 
-# install development dependencies
+# install python development dependencies
 depsdev:
 	( \
 		[ -n "$$VIRTUAL_ENV" ] || . venv/bin/activate ;\
 		pip install -r requirements-dev.txt ;\
 	)
 
-# install runtime dependencies
+# install python runtime dependencies
 deps:
 	( \
 		[ -n "$$VIRTUAL_ENV" ] || . venv/bin/activate ;\
 		pip install -r requirements.txt ;\
 	)
+
+# pull postgresql docker image and generate config
+depsdevdb:
+	$(eval POSTGRES_USER = 'pgadmin')
+	$(eval POSTGRES_PASSWORD = $(shell tr -dc 'A-Za-z0-9+,-./:;' </dev/urandom | head -c "12"; echo ''))
+	$(eval POSTGRES_DB = 'defaultdb')
+	$(eval PGHOST = 'localhost')
+	$(eval PGPORT = '5432')
+	@echo '{\n    "db_type": "postgresql",\n    "db_user": "'$(POSTGRES_USER)'",\n    "db_pass": "'"$(POSTGRES_PASSWORD)"'",\n    "db_name": "'$(POSTGRES_DB)'",\n    "db_host": "'$(PGHOST)'",\n    "db_port": "'$(PGPORT)'",\n    "db_ssl":  "require"\n}' > 'secrets/db_postgresql_container.json'
+	docker pull postgres:17.4-bookworm
+
+# spin docker postgresql container using existing config
+depsdevdbrun:
+	@( \
+		export $$(jq -r 'to_entries|map("\(.key)=\(.value)")|.[]' secrets/db_postgresql_container.json) ;\
+		docker run --name postgres-webmon -p 127.0.0.1:5432:5432 --memory="512m" --shm-size="256m" -e POSTGRES_PASSWORD="$$db_pass" -e POSTGRES_USER="$$db_user" -e POSTGRES_DB="$$db_name" -d postgres:17.4-bookworm ;\
+		docker ps --filter "name=postgres-webmon" ;\
+	)
+	@sleep 3s
+	@nc -zv localhost 5432
 
 # run the application using pre-defined parameters; to add extra ones do: make run -- 'opt1 --opt2 a=x'
 run: args

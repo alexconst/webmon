@@ -25,12 +25,19 @@ make depsdevdbrun
 
 ## Run it
 ```bash
+# help menus
 make help
 make run -- -h
-
+# the above make command is equivalent to doing:
 source venv/bin/activate
-./src/webmoncli.py --db-config secrets/db_postgresql.json --drop-tables
-./src/webmoncli.py --db-config secrets/db_postgresql.json --sites-csv data/websites_top101_www.csv --number-healthchecks -1
+./src/webmoncli.py -h
+deactivate
+
+
+config_file="secrets/db_postgresql_container.json"
+source venv/bin/activate
+./src/webmoncli.py --db-config "$config_file" --drop-tables
+./src/webmoncli.py --db-config "$config_file" --sites-csv data/websites_top101_www.csv --number-healthchecks -1
 ```
 
 
@@ -49,6 +56,7 @@ source venv/bin/activate
     "db_ssl":  "require"
 }
 ```
+db_ssl is detailed in https://magicstack.github.io/asyncpg/current/api/index.html#connection
 
 ## websites CSV
 Uses `,` as the delimiter between fields and optional `"` quotes to surrond strings.

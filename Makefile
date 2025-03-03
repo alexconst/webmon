@@ -23,7 +23,7 @@ DEF_ARGS=
 CMD_RUN=python $(APP) $(DEF_ARGS) $(RUN_ARGS)
 CMD_PROFILING=python -mcProfile -o app.prof $(APP) $(DEF_ARGS) $(RUN_ARGS)
 PYTHON_SRC=src
-PYTHON_TESTS=tests tests_integration tests_smoke
+PYTHON_TESTS=tests_unit tests_integration tests_smoke
 PYTHON_DIRS=$(PYTHON_SRC) $(PYTHON_TESTS)
 
 
@@ -57,7 +57,7 @@ depsdevdb:
 	$(eval POSTGRES_DB = 'defaultdb')
 	$(eval PGHOST = 'localhost')
 	$(eval PGPORT = '5432')
-	@echo '{\n    "db_type": "postgresql",\n    "db_user": "'$(POSTGRES_USER)'",\n    "db_pass": "'"$(POSTGRES_PASSWORD)"'",\n    "db_name": "'$(POSTGRES_DB)'",\n    "db_host": "'$(PGHOST)'",\n    "db_port": "'$(PGPORT)'",\n    "db_ssl":  "require"\n}' > 'secrets/db_postgresql_container.json'
+	@echo '{\n    "db_type": "postgresql",\n    "db_user": "'$(POSTGRES_USER)'",\n    "db_pass": "'"$(POSTGRES_PASSWORD)"'",\n    "db_name": "'$(POSTGRES_DB)'",\n    "db_host": "'$(PGHOST)'",\n    "db_port": "'$(PGPORT)'",\n    "db_ssl":  "disable"\n}' > 'secrets/db_postgresql_container.json'
 	docker pull postgres:17.4-bookworm
 
 # spin docker postgresql container using existing config
@@ -68,7 +68,7 @@ depsdevdbrun:
 		docker ps --filter "name=postgres-webmon" ;\
 	)
 	@sleep 3s
-	@nc -zv localhost 5432
+	@nc -4 -zv localhost 5432
 
 # run the application using pre-defined parameters; to add extra ones do: make run -- 'opt1 --opt2 a=x'
 run: args
@@ -109,7 +109,7 @@ tests: tests-unit tests-integration tests-smoke
 tests-unit:
 	@( \
 		[ -n "$$VIRTUAL_ENV" ] || . venv/bin/activate ;\
-		pytest -s -v --log-level=DEBUG tests ;\
+		pytest -s -v --log-level=DEBUG tests_unit ;\
 	)
 
 # run integration tests using pytest
@@ -130,7 +130,7 @@ tests-smoke:
 debug:
 	@( \
 		[ -n "$$VIRTUAL_ENV" ] || . venv/bin/activate ;\
-		pytest -s -v --log-level=DEBUG --pdb tests tests_integration ;\
+		pytest -s -v --log-level=DEBUG --pdb tests_unit tests_integration ;\
 	)
 
 # catch unmatched rules (which are triggered when passing extra options to run) to do nothing

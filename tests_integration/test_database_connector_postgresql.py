@@ -16,7 +16,7 @@ from webmon.website import Website
 #logging.getLogger("webmonitor").setLevel(logging.DEBUG)
 
 
-@pytest.mark.asyncio(scope="class")
+@pytest.mark.asyncio(loop_scope="class")
 class TestDatabaseConnectorPostgresql:
     loop: asyncio.AbstractEventLoop
 

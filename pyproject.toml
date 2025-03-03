@@ -1,3 +1,6 @@
+[tool.pytest.ini_options]
+asyncio_default_fixture_loop_scope = "function" # using function provides the highest level of isolation between tests
+
 [tool.isort]
 profile = "black"
 skip = ['.gitignore']

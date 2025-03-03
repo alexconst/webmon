@@ -187,20 +187,27 @@ class WebMonitor:
         :param sem: semaphore to control number of simultaneous connections
         """
         request_headers = {
-            'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/115.0',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+            'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
             'Accept-Language': 'en-US,en;q=0.5',
+            'Accept-Encoding': 'gzip, deflate, br, zstd',
+            'Connection': 'keep-alive',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'none',
+            'Sec-Fetch-User': '?1',
+            'Priority': 'u=0, i',
             'Referer': 'https://www.google.com/',
-            'Connection': 'keep-alive'
         }
         timeout_seconds = 15
+        max_size_response = 8190*2 # double the default size (some sites, eg twitter, would trigger an exception because of it)
         num_checks = self.num_checks
         regex_pattern = None
         if website.regex:
             regex_pattern = re.compile(website.regex)
         connector = TCPConnector(limit=None, enable_cleanup_closed=True, force_close=True)  # type: ignore  # limit=None for no limit
         total_timeout = ClientTimeout(total=timeout_seconds)
-        async with ClientSession(connector=connector, timeout=total_timeout) as session:
+        async with ClientSession(connector=connector, timeout=total_timeout, max_line_size=max_size_response, max_field_size=max_size_response) as session:
             while num_checks != 0:
                 num_checks -= 1
                 await asyncio.sleep(website.interval)

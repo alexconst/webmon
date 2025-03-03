@@ -12,7 +12,7 @@ from webmon.healthcheck import Healthcheck
 from webmon.web_monitor import WebMonitor
 
 
-@pytest.mark.asyncio(scope="class")
+@pytest.mark.asyncio(loop_scope="class")
 class TestWebMonitor:
     loop: asyncio.AbstractEventLoop
 

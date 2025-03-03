@@ -149,7 +149,8 @@ awk 'BEGIN{FS=OFS=","} {gsub(/"/, "", $1); if ($1 ~ /^[^.]*\.[^.]*$/) {sub(/^/, 
     - https://github.com/MagicStack/asyncpg/issues/258
 - You need to close the DB connection pool, otherwise you'll always get an exception at the end.
 - Despite what some information may say, you shouldn't share a `ClientSession` connection pool with other websites. Because if you do you'll end up getting a cascading `asyncio.TimeoutError`. It's as if that connection got broken beyond repair. If one `session.request` failed (eg: timeout exceeded) then it would break all other requests to other sites. I tried using `TCPConnector(limit=none, enable_cleanup_closed=True, force_close=True)` but that didn't solve it. The only working solution to fix the cascading `asyncio.TimeoutError` was to create a ClientSession per site and also to using `asyncio.Semaphore`.
-
+- http status code 400 can be caused by incorrect request headers. The way to fix it was to use a browser web tools and see what it is sending exactly.
+- http status code 555 can be caused by incompatible request headers. On one occasion is was sending `br` in the requests headers but missing the brotli library installed.
 
 
 

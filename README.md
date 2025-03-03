@@ -35,9 +35,8 @@ deactivate
 
 
 config_file="secrets/db_postgresql_container.json"
-source venv/bin/activate
-./src/webmoncli.py --db-config "$config_file" --drop-tables
-./src/webmoncli.py --db-config "$config_file" --sites-csv data/websites_top101_www.csv --number-healthchecks -1
+make run -- --db-config "$config_file" --drop-tables
+make run -- --db-config "$config_file" --sites-csv data/websites_top101_www.csv --number-healthchecks -1
 ```
 
 
@@ -157,6 +156,7 @@ awk 'BEGIN{FS=OFS=","} {gsub(/"/, "", $1); if ($1 ~ /^[^.]*\.[^.]*$/) {sub(/^/, 
 
 # Bugs & Caveats
 - Redirect doesn't work. When making a `ClientSession.request` despite `allow_redirects` defaulting to True, if you try to access an incorrect domain, eg a naked domain, if it fails then it won't automatically try the `www.` subdomain. Browsers do a bit of magic in this regard. But another example of this can be seen with `ec.europa.eu` which on the browser redirects to `commission.europa.eu` and in curl it gets a redirect status code, but it didn't work in this tool with `ClientSession.request`.
+- When using the local docker container for the DB, currently connections are not encrypted. Acceptable since this is for test purposes. But maybe if changing things for a docker compose file I might as well setup certificates and enable this.
 
 
 

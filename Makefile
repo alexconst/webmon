@@ -1,4 +1,4 @@
-.PHONY: help args venv depsdevdb depsdevdbrun depsdev deps run profiling lint tests tests-unit tests-integration tests-smoke debug
+.PHONY: FORCE help args venv depsdevdb depsdevdbrun depsdev deps run profiling lint tests tests-unit tests-integration tests-smoke debug
 
 # running make with no targets will run the first target (in this case "help")
 # this help menu
@@ -14,7 +14,7 @@ ifeq (run,$(firstword $(MAKECMDGOALS)))
 # use the rest as arguments for "run"
 RUN_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
 # ...and turn them into do-nothing targets
-$(eval $(RUN_ARGS):;@:)
+$(foreach arg,$(RUN_ARGS),$(eval $(arg): FORCE; @:))
 endif
 
 
@@ -135,6 +135,5 @@ debug:
 
 # catch unmatched rules (which are triggered when passing extra options to run) to do nothing
 %:
-	@:
-	@echo "No such target in the Makefile"
+	@echo "No such target in the Makefile: $@"
 

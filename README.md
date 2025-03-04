@@ -3,7 +3,7 @@ CLI app to periodically perform health checks on multiple websites.
 Each health check can be defined with: url, time interval, optional regex to check the response html
 The list of websites can be provided as a file or in a DB via a config file.
 The app stores healthcheck status results in the DB.
-
+The motivator for this project was to work with Python async and PostgreSQL.
 
 # How To
 
@@ -85,6 +85,16 @@ The initial assumptions were as follow:
 These proved out to be true during tests up to 5000 connections. Connections beyond that number haven't been tested yet.
 
 
+
+# Bugs & Caveats
+- The top website lists I got are somewhat outdated. For example some of the websites no longer exist.
+- Redirect doesn't work. When making a `ClientSession.request` despite `allow_redirects` defaulting to True, if you try to access an incorrect domain, eg a naked domain, if it fails then it won't automatically try the `www.` subdomain. Browsers do a bit of magic in this regard. But another example of this can be seen with `ec.europa.eu` which on the browser redirects to `commission.europa.eu` and in curl it gets a redirect status code, but it didn't work in this tool with `ClientSession.request`.
+- When using the local docker container for the DB, currently connections are not encrypted. Acceptable since this is for test purposes. But maybe if changing things for a docker compose file I might as well setup certificates and enable this.
+- Some websites refuse to cooperate with the http GET request, the reason still unknown. For those sites that end up triggering an exception they are tagged with status code 555. On one occasion, now fixed, was sending incompatible request headers (accept encoding had `br` but the app was missing the brotli library).
+
+
+
+
 # Development tips
 
 ## tests
@@ -95,7 +105,7 @@ This projects has the following tests:
 
 ## pgsql inspection
 ```bash
-export $(jq -r 'to_entries|map("\(.key)=\(.value)")|.[]' secrets/db_postgresql.json)
+export $(jq -r 'to_entries|map("\(.key)=\(.value)")|.[]' secrets/db_postgresql_container.json)
 psql --host "$db_host" --port "$db_port" --username "$db_user" --password --dbname "$db_name"
 ```
 
@@ -112,10 +122,17 @@ SELECT COUNT(*) FROM healthcheck WHERE http_status_code = 555;
 SELECT h.* FROM healthcheck h JOIN website w ON h.website_fk = w.website_id WHERE h.http_status_code = 555 AND w.url_uq = 'https://sciencedirect.com:443';
 SELECT h.* FROM healthcheck h JOIN website w ON h.website_fk = w.website_id WHERE w.url_uq = 'https://sciencedirect.com:443';
 
-SELECT w.url_uq, h.error_message FROM website w JOIN healthcheck h ON h.website_fk = w.website_id WHERE h.http_status_code != 200;
-
--- won't run, or at least on low end DB server
-SELECT w.url_uq, (SELECT COUNT(*) FROM healthcheck WHERE website_fk = w.website_id AND http_status_code = 200) AS count_http_200, (SELECT COUNT(*) FROM healthcheck WHERE website_fk = w.website_id AND http_status_code != 200) AS count_not_http_200   FROM website w JOIN healthcheck h ON h.website_fk = w.website_id WHERE h.http_status_code != 200;
+-- show all unsuccessful requests for each site
+SELECT w.url_uq, h.http_status_code, h.error_message FROM website w JOIN healthcheck h ON h.website_fk = w.website_id WHERE h.http_status_code != 200;
+-- show all distinct unsuccessful requests for each site
+SELECT DISTINCT w.url_uq, h.http_status_code, h.error_message FROM website w JOIN healthcheck h ON h.website_fk = w.website_id WHERE h.http_status_code != 200;
+-- show a count for each distinct unsuccessful request per site
+SELECT w.url_uq, h.http_status_code AS http_code, h.error_message, COUNT(*) AS x_count
+FROM website w
+JOIN healthcheck h ON h.website_fk = w.website_id
+WHERE h.http_status_code != 200
+GROUP BY w.url_uq, h.http_status_code, h.error_message
+ORDER BY x_count DESC;
 ```
 
 ## top websites list generation
@@ -149,14 +166,7 @@ awk 'BEGIN{FS=OFS=","} {gsub(/"/, "", $1); if ($1 ~ /^[^.]*\.[^.]*$/) {sub(/^/, 
 - You need to close the DB connection pool, otherwise you'll always get an exception at the end.
 - Despite what some information may say, you shouldn't share a `ClientSession` connection pool with other websites. Because if you do you'll end up getting a cascading `asyncio.TimeoutError`. It's as if that connection got broken beyond repair. If one `session.request` failed (eg: timeout exceeded) then it would break all other requests to other sites. I tried using `TCPConnector(limit=none, enable_cleanup_closed=True, force_close=True)` but that didn't solve it. The only working solution to fix the cascading `asyncio.TimeoutError` was to create a ClientSession per site and also to using `asyncio.Semaphore`.
 - http status code 400 can be caused by incorrect request headers. The way to fix it was to use a browser web tools and see what it is sending exactly.
-- http status code 555 can be caused by incompatible request headers. On one occasion is was sending `br` in the requests headers but missing the brotli library installed.
 
-
-
-
-# Bugs & Caveats
-- Redirect doesn't work. When making a `ClientSession.request` despite `allow_redirects` defaulting to True, if you try to access an incorrect domain, eg a naked domain, if it fails then it won't automatically try the `www.` subdomain. Browsers do a bit of magic in this regard. But another example of this can be seen with `ec.europa.eu` which on the browser redirects to `commission.europa.eu` and in curl it gets a redirect status code, but it didn't work in this tool with `ClientSession.request`.
-- When using the local docker container for the DB, currently connections are not encrypted. Acceptable since this is for test purposes. But maybe if changing things for a docker compose file I might as well setup certificates and enable this.
 
 
 

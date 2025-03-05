@@ -23,7 +23,7 @@ DEF_ARGS=
 CMD_RUN=python $(APP) $(DEF_ARGS) $(RUN_ARGS)
 CMD_PROFILING=python -mcProfile -o app.prof $(APP) $(DEF_ARGS) $(RUN_ARGS)
 PYTHON_SRC=src
-PYTHON_TESTS=tests_unit tests_integration tests_smoke
+PYTHON_TESTS=tests
 PYTHON_DIRS=$(PYTHON_SRC) $(PYTHON_TESTS)
 
 
@@ -114,28 +114,28 @@ tests: tests-unit tests-integration tests-smoke
 tests-unit:
 	@( \
 		[ -n "$$VIRTUAL_ENV" ] || . venv/bin/activate ;\
-		pytest -s -v --log-level=DEBUG tests_unit ;\
+		pytest -s -v --log-level=DEBUG tests/unit ;\
 	)
 
 # run integration tests using pytest
 tests-integration:
 	@( \
 		[ -n "$$VIRTUAL_ENV" ] || . venv/bin/activate ;\
-		pytest -s -v --log-level=DEBUG tests_integration ;\
+		pytest -s -v --log-level=DEBUG tests/integration ;\
 	)
 
 # run smoke tests using pytest
 tests-smoke:
 	@( \
 		[ -n "$$VIRTUAL_ENV" ] || . venv/bin/activate ;\
-		pytest -s -v --log-level=DEBUG tests_smoke;\
+		pytest -s -v --log-level=DEBUG tests/smoke;\
 	)
 
 # run tests and start pdb when a test fails
 debug:
 	@( \
 		[ -n "$$VIRTUAL_ENV" ] || . venv/bin/activate ;\
-		pytest -s -v --log-level=DEBUG --pdb tests_unit tests_integration ;\
+		pytest -s -v --log-level=DEBUG --pdb tests/unit tests/integration ;\
 	)
 
 # catch unmatched rules (which are triggered when passing extra options to run) to do nothing

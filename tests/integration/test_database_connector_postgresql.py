@@ -1,7 +1,7 @@
 import os
 import sys
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '../src/'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '../../src/'))
 import asyncio
 import json
 from types import SimpleNamespace
@@ -24,7 +24,7 @@ class TestDatabaseConnectorPostgresql:
     test_table_name = 'test_table'
 
     async def setup(self):
-        test_db_config = os.path.join(os.path.dirname(__file__), '../secrets/test_db_postgresql.json')
+        test_db_config = os.path.join(os.path.dirname(__file__), '../../secrets/test_db_postgresql.json')
         with open(test_db_config, 'r') as file:
             test_db_config = json.load(file)
         cfg = SimpleNamespace(**{k: v for k, v in test_db_config.items()})

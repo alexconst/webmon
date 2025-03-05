@@ -1,7 +1,7 @@
 import os
 import sys
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '../src/'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '../../src/'))
 import asyncio
 import json
 
@@ -19,8 +19,8 @@ class TestWebMonitor:
     wm = None
 
     def setup(self):
-        dbconfig_filename = os.path.join(os.path.dirname(__file__), '../secrets/test_db_postgresql.json')
-        sites_filename = os.path.join(os.path.dirname(__file__), '../data/websites_top3.csv')
+        dbconfig_filename = os.path.join(os.path.dirname(__file__), '../../secrets/test_db_postgresql.json')
+        sites_filename = os.path.join(os.path.dirname(__file__), '../../data/websites_top3.csv')
         number_healthchecks = 1
         TestWebMonitor.wm = WebMonitor(dbconfig_filename, sites_filename, number_healthchecks)
         TestWebMonitor.wm.tablename_website = 'test_table_website'

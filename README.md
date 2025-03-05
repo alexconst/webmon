@@ -3,7 +3,7 @@ CLI app to periodically perform health checks on multiple websites.
 
 Each health check can be defined with: url, time interval, optional regex to check the response html
 
-The list of websites can be provided as a file or in a DB via a config file. The listings in the `data` folder were created using available lists for top websites, a random time interval between 5 and 300 seconds, and for some a random text pattern to check against the response html.
+The list of websites can be provided as a file or in a DB via a config file. The listings in the `data` folder were created using available lists for top websites, a random time interval between 5 and 300 seconds, and for some a random text pattern to check against the response html. To test with a greater number of websites check the [corresponding section](#top-websites-list-generation) for details. This app was tested with listings up to 5000 websites.
 
 The app stores healthcheck status results in the DB.
 

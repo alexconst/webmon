@@ -9,7 +9,7 @@ import time
 from types import SimpleNamespace
 from typing import List, Optional
 
-from aiohttp import ClientSession, ClientTimeout, TCPConnector
+from aiohttp import ClientSession, ClientTimeout, TCPConnector, ClientConnectorDNSError
 
 from .database_connector_factory import DatabaseConnectorFactory, DatabaseType
 from .healthcheck import Healthcheck, RegexMatchStatus
@@ -99,7 +99,11 @@ class WebMonitor:
                     continue
                 if idx == 0 and f'host{delimiter}interval' in str(row):
                     continue
-                url, interval, regex = split_row(row)
+                try:
+                    url, interval, regex = split_row(row)
+                except:
+                    logger.fatal(f'Malforded entry (missing column?) in CSV file in row: {row}')
+                    sys.exit(1)
                 url = WebMonitor.get_valid_url(url, False)  # better disable any "magic" for non-naked domain
                 sites.append(Website(website_id=-1, url_uq=url, interval=interval, regex=regex))
         self.site_list = sites  # type: ignore
@@ -208,7 +212,7 @@ class WebMonitor:
         connector = TCPConnector(limit=None, enable_cleanup_closed=True, force_close=True)  # type: ignore  # limit=None for no limit
         total_timeout = ClientTimeout(total=timeout_seconds)
         async with ClientSession(connector=connector, timeout=total_timeout, max_line_size=max_size_response, max_field_size=max_size_response) as session:
-            while num_checks != 0:
+            while num_checks != 0 or self.num_checks == -1:
                 num_checks -= 1
                 await asyncio.sleep(website.interval)
                 check = await self._request_website(session, website, sem, request_headers, regex_pattern)  # type: ignore
@@ -261,7 +265,11 @@ class WebMonitor:
             status_code = resp.status
         except asyncio.TimeoutError as exp:
             logger.debug(f'FAILed making web request for: {website.url_uq}')
-            status_code = 598  # (Informal convention) Network read timeout error
+            status_code = 598  # (Unofficial code) Network read timeout error
+            error_message += f"{str(exp.__class__)} {str(exp)}"
+        except ClientConnectorDNSError as exp:
+            logger.debug(f'FAILed DNS resolution for: {website.url_uq}')
+            status_code = 530  # (Unofficial code) Can't resolve the requested DNS record
             error_message += f"{str(exp.__class__)} {str(exp)}"
         except Exception as exp:
             status_code = 555  # observed expections include: ClientConnectorError, ClientOSError

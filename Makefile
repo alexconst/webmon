@@ -101,6 +101,11 @@ lint:
 #		black --config pyproject.toml $(PYTHON_DIRS) ;\
 
 
+# update README.md TOC
+docs:
+	@which github_markdown_toc.sh >/dev/null || (echo 'Tool for generating the markdown TOC not found' ; exit 1)
+	@github_markdown_toc.sh --insert README.md
+
 # run all tests
 tests: tests-unit tests-integration tests-smoke
 

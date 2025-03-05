@@ -216,7 +216,7 @@ A solution, which at the very least will always improve scalability, can be to s
 
 ## configure connection numbers
 - Configure pool sizes for DB requests. So far there was no need to do so.
-- Configure request numbers for GET requests. Currently we are using `asyncio.Semaphore` with a "magical" number (ie static and possibly machine dependent). A better approach would be for this to be set dynamically, possibly based on the ratio between the number of websites by the average healthcheck interval time. Other considerations could be: response times, CPU and net load. Note that this doesn't invalidate the points mentioned on multiprocessing issue (ie these are independent and having multiprocessing would allow for better performance and scalability).
+- Configure request numbers for GET requests. Currently we are using `asyncio.Semaphore` with a "magical" number (ie static and possibly machine dependent). A better approach would be for this to be set dynamically, possibly based on the ratio between the number of websites by the average healthcheck interval time. Other considerations could be: response times, CPU and net load. Another possible dynamic strategy: Increase semaphore if timeouts < 1% AND CPU/memory utilization < 70%; Decrease if timeouts > 5% OR resource utilization > 80%. Note that this doesn't invalidate the points mentioned on multiprocessing issue (ie these are independent and having multiprocessing would allow for better performance and scalability).
 
 
 ## consider queues

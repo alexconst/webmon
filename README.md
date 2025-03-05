@@ -1,9 +1,40 @@
 # About
 CLI app to periodically perform health checks on multiple websites.
 Each health check can be defined with: url, time interval, optional regex to check the response html
-The list of websites can be provided as a file or in a DB via a config file. The listings in the [data/]() folder were created using available lists for top websites, a random time interval between 5 and 300 seconds, and for some a random text pattern to check against the response html.
+The list of websites can be provided as a file or in a DB via a config file. The listings in the `data` folder were created using available lists for top websites, a random time interval between 5 and 300 seconds, and for some a random text pattern to check against the response html.
 The app stores healthcheck status results in the DB.
 The motivator for this project was to work with Python async and PostgreSQL.
+
+
+# TOC
+<!--ts-->
+- [About](#about)
+- [TOC](#toc)
+- [How To](#how-to)
+    - [Dependencies](#dependencies)
+    - [Run it](#run-it)
+- [Input files data formats](#input-files-data-formats)
+    - [DB config format with secrets](#db-config-format-with-secrets)
+    - [websites CSV](#websites-csv)
+- [Design Considerations](#design-considerations)
+    - [Decisions](#decisions)
+    - [Assumptions](#assumptions)
+- [Bugs & Limitations & Caveats](#bugs--limitations--caveats)
+- [Development tips](#development-tips)
+    - [tests](#tests)
+    - [pgsql inspection](#pgsql-inspection)
+    - [top websites list generation](#top-websites-list-generation)
+- [Lessons Learned](#lessons-learned)
+- [TODO / Future Work](#todo--future-work)
+    - [leverage multiprocessing](#leverage-multiprocessing)
+    - [configure connection numbers](#configure-connection-numbers)
+    - [consider queues](#consider-queues)
+    - [Docker compose](#docker-compose)
+    - [web interface for results](#web-interface-for-results)
+    - [CI pipeline in Github](#ci-pipeline-in-github)
+    - [improve code quality](#improve-code-quality)
+- [References](#references)
+<!--te-->
 
 # How To
 

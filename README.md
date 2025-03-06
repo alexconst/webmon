@@ -46,23 +46,23 @@ The motivator for this project was to work with Python async and PostgreSQL.
 ```bash
 sudo apt-get install libpq-dev postgresql-common
 
-make venv
-make deps
-# and optionally:
-make depsdev
+make py-venv
+make py-deps
+# and optionally for development:
+make py-depsdev
 ```
 
 If you do not have a DB running with an appropriate configuration file in `secrets/` yet, then the following will pull a PostgreSQL docker image, spin up a container, and save the config to `secrets/db_postgresql_container.json`
 ```bash
-make depsdevdb
-make depsdevdbrun
+make db-cfg
+make db-run
 ```
 
 ## Run it
 ```bash
 # help menus
 make help
-make run -- -h
+make app-run -- -h
 # the above make command is equivalent to doing:
 source venv/bin/activate
 ./src/webmoncli.py -h
@@ -70,8 +70,8 @@ deactivate
 
 
 config_file="secrets/db_postgresql_container.json"
-make run -- --db-config "$config_file" --drop-tables
-make run -- --db-config "$config_file" --sites-csv data/websites_top101_www.csv --number-healthchecks -1
+make app-run -- --db-config "$config_file" --drop-tables
+make app-run -- --db-config "$config_file" --sites-csv data/websites_top101_www.csv --number-healthchecks -1
 ```
 
 

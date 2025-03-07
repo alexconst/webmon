@@ -1,0 +1,23 @@
+# Use an official Python runtime as a parent image
+FROM python:3.13-slim-bookworm
+
+# Set the working directory in the container
+WORKDIR /app
+
+# Copy minimum config files to setup/build the image
+COPY Makefile /app/
+COPY requirements /app/requirements/
+
+# Install any needed packages (opting for DRY code at the cost of disk overhead, thus the use of make over pure pip)
+RUN apt update
+RUN apt-get install --no-install-recommends make
+RUN pwd
+RUN ls -la
+RUN cat /proc/self/limits
+RUN make py-venv
+RUN make py-deps
+#RUN make py-depsdev
+
+# Make the command to run the script (not using it because it is set in docker-compose.yaml)
+#CMD ["make", "app-run", "..."]
+

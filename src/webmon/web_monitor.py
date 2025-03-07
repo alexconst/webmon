@@ -158,7 +158,10 @@ class WebMonitor:
         soft_limit, hard_limit = resource.getrlimit(resource.RLIMIT_NOFILE)
         new_soft_limit = max(soft_limit + hint * factor, resource.RLIM_INFINITY)
         # increase max number of FDs soft limit to based on the number of websites, and maintain the hard limit because only root can increase it
-        resource.setrlimit(resource.RLIMIT_NOFILE, (new_soft_limit, hard_limit))
+        try:
+            resource.setrlimit(resource.RLIMIT_NOFILE, (new_soft_limit, hard_limit))
+        except:
+            logger.error(f"Failed to set new ulimits values (soft, hard) from ({soft_limit}, {hard_limit}) to ({new_soft_limit}, {hard_limit})")
         new_soft_limit, new_hard_limit = resource.getrlimit(resource.RLIMIT_NOFILE)
         if logger:
             logger.info(f"OS's soft limit on max number of file descriptors: old value was {soft_limit}, new value is {new_soft_limit}.")

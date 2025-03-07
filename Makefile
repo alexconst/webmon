@@ -1,4 +1,6 @@
-.PHONY: FORCE help args py-venv py-deps py-depsdev db-cfg db-run db-del app-run app-profile app-debug lint tests tests-unit tests-integration tests-smoke
+.PHONY: FORCE help args py-venv py-deps py-depsdev db-cfg db-run db-del app-run app-profile app-debug lint tests tests-unit tests-integration tests-smoke docker-deploy docker-destroy
+
+SHELL := /bin/bash
 
 # running make with no targets will run the first target (in this case "help")
 # this help menu
@@ -40,14 +42,14 @@ py-venv:
 py-deps:
 	( \
 		[ -n "$$VIRTUAL_ENV" ] || . venv/bin/activate ;\
-		pip install -r requirements.txt ;\
+		pip install -r requirements/requirements.txt ;\
 	)
 
 # install python development dependencies
 py-depsdev:
 	( \
 		[ -n "$$VIRTUAL_ENV" ] || . venv/bin/activate ;\
-		pip install -r requirements-dev.txt ;\
+		pip install -r requirements/requirements-dev.txt ;\
 	)
 
 # pull postgresql docker image and generate config
@@ -139,6 +141,27 @@ tests-smoke:
 	@( \
 		[ -n "$$VIRTUAL_ENV" ] || . venv/bin/activate ;\
 		pytest -s -v --log-level=DEBUG tests/smoke;\
+	)
+
+# deploy all services using docker-compose (will terminate any previous containers and generate a new config)
+docker-deploy: db-del db-cfg
+	@( \
+		export db_config_file="secrets/db_postgresql_container.json" ;\
+		export db_service_name="postgres" ;\
+		cat <<< "$$(jq '.db_host = "'$$db_service_name'"' $$db_config_file)" > $$db_config_file ;\
+		export $$(jq -r 'to_entries|map("\(.key)=\(.value)")|.[]' "$$db_config_file") ;\
+		docker-compose down ;\
+		docker-compose up --build ;\
+		docker-compose ps ;\
+	)
+
+# docker-compose down
+docker-destroy:
+	@( \
+		export db_config_file="secrets/db_postgresql_container.json" ;\
+		export $$(jq -r 'to_entries|map("\(.key)=\(.value)")|.[]' "$$db_config_file") ;\
+		docker-compose down ;\
+		docker-compose ps ;\
 	)
 
 # catch unmatched rules (which are triggered when passing extra options to run) to do nothing

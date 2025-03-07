@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  webmon:
+    build:
+      context: .
+      dockerfile: Dockerfile.webmon
+    volumes:
+      - ./src:/app/src
+      - ./data:/app/data
+      # while docker-compose supports file mapping, podman-compose only supports dir mapping https://github.com/containers/podman/issues/24136 so we copy the whole folder
+      #- ./secrets/${db_config_file}:/app/secrets/${db_config_file}
+      - ./secrets:/app/secrets
+    command: make app-run -- --db-config ${db_config_file} --sites-csv data/websites_top101_www.csv --number-healthchecks -1
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - PYTHONUNBUFFERED=1
+    ulimits:
+      nofile:
+        soft:  262144
+        hard: 1048576
+
+  postgres:
+    image: postgres:17.4-bookworm
+    ports:
+      - "127.0.0.1:5432:5432"
+    environment:
+      - POSTGRES_PASSWORD=${db_pass}
+      - POSTGRES_USER=${db_user}
+      - POSTGRES_DB=${db_name}
+    mem_limit: 512m
+    shm_size: 256m
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+

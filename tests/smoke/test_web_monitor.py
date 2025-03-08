@@ -19,7 +19,7 @@ class TestWebMonitor:
     wm = None
 
     def setup(self):
-        dbconfig_filename = os.path.join(os.path.dirname(__file__), '../../secrets/test_db_postgresql.json')
+        dbconfig_filename = os.path.join(os.path.dirname(__file__), '../../secrets/db_postgresql_container.json')
         sites_filename = os.path.join(os.path.dirname(__file__), '../../data/websites_top3.csv')
         number_healthchecks = 1
         TestWebMonitor.wm = WebMonitor(dbconfig_filename, sites_filename, number_healthchecks)

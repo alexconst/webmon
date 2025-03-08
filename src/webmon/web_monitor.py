@@ -9,7 +9,7 @@ import time
 from types import SimpleNamespace
 from typing import List, Optional
 
-from aiohttp import ClientSession, ClientTimeout, TCPConnector, ClientConnectorDNSError
+from aiohttp import ClientConnectorDNSError, ClientSession, ClientTimeout, TCPConnector
 
 from .database_connector_factory import DatabaseConnectorFactory, DatabaseType
 from .healthcheck import Healthcheck, RegexMatchStatus
@@ -161,7 +161,8 @@ class WebMonitor:
         try:
             resource.setrlimit(resource.RLIMIT_NOFILE, (new_soft_limit, hard_limit))
         except:
-            logger.error(f"Failed to set new ulimits values (soft, hard) from ({soft_limit}, {hard_limit}) to ({new_soft_limit}, {hard_limit})")
+            if logger:
+                logger.error(f"Failed to set new ulimits values (soft, hard) from ({soft_limit}, {hard_limit}) to ({new_soft_limit}, {hard_limit})")
         new_soft_limit, new_hard_limit = resource.getrlimit(resource.RLIMIT_NOFILE)
         if logger:
             logger.info(f"OS's soft limit on max number of file descriptors: old value was {soft_limit}, new value is {new_soft_limit}.")
@@ -207,14 +208,15 @@ class WebMonitor:
             'Referer': 'https://www.google.com/',
         }
         timeout_seconds = 15
-        max_size_response = 8190*2 # double the default size (some sites, eg twitter, would trigger an exception because of it)
+        max_size_response = 8190 * 2  # double the default size (some sites, eg twitter, would trigger an exception because of it)
         num_checks = self.num_checks
         regex_pattern = None
         if website.regex:
             regex_pattern = re.compile(website.regex)
         connector = TCPConnector(limit=None, enable_cleanup_closed=True, force_close=True)  # type: ignore  # limit=None for no limit
         total_timeout = ClientTimeout(total=timeout_seconds)
-        async with ClientSession(connector=connector, timeout=total_timeout, max_line_size=max_size_response, max_field_size=max_size_response) as session:
+        async with ClientSession(connector=connector, timeout=total_timeout, max_line_size=max_size_response,
+                                 max_field_size=max_size_response) as session:
             while num_checks != 0 or self.num_checks == -1:
                 num_checks -= 1
                 await asyncio.sleep(website.interval)

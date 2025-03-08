@@ -14,7 +14,8 @@ The motivator for this project was to work with Python async and PostgreSQL.
 <!--ts-->
 - [About](#about)
 - [TOC](#toc)
-- [How To](#how-to)
+- [How To with Docker Compose](#how-to-with-docker-compose)
+- [How To locally](#how-to-locally)
     - [Dependencies](#dependencies)
     - [Run it](#run-it)
 - [Input files data formats](#input-files-data-formats)
@@ -40,7 +41,17 @@ The motivator for this project was to work with Python async and PostgreSQL.
 - [References](#references)
 <!--te-->
 
-# How To
+
+
+
+# How To with Docker Compose
+```bash
+make db-cfg
+make docker-deploy
+```
+
+
+# How To locally
 
 ## Dependencies
 ```bash

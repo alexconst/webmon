@@ -79,7 +79,7 @@ db-run:
 
 # stop the db container and remove it
 db-del:
-	@docker rm -f $$(docker container ls -aq --filter "name=postgres-webmon") || true
+	@docker rm -f $$(docker container ls -aq --filter "name=postgres-webmon") 2>/dev/null || true
 
 # run the application using pre-defined parameters; to add extra ones do: make run -- 'opt1 --opt2 a=x'
 app-run: _args
@@ -149,12 +149,12 @@ tests-smoke:
 	)
 
 # deploy all services using docker-compose (will terminate any previous containers beforehand)
-docker-deploy: db-del
+docker-deploy: db-del db-cfg
 	@( \
-		db_config_file="secrets/db_postgresql_compose.json" ;\
+		export db_config_file="secrets/db_postgresql_compose.json" ;\
 		db_service_name="postgres" ;\
 		if [ ! -e "$$db_config_file" ]; then \
-			mv "secrets/db_postgresql_example.json" "$$db_config_file" \
+			mv -v "secrets/db_postgresql_example.json" "$$db_config_file" ;\
 			cat <<< "$$(jq '.db_host = "'$$db_service_name'"' $$db_config_file)" > $$db_config_file ;\
 		fi ;\
 		export $$(jq -r 'to_entries|map("\(.key)=\(.value)")|.[]' "$$db_config_file") ;\
@@ -168,6 +168,7 @@ docker-destroy:
 	@( \
 		docker-compose down ;\
 		docker-compose ps ;\
+		docker ps -a ;\
 	)
 
 # dependencies for ci-push
